@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: airline-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DEFAULT_DB}
+
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+    volumes:
+      - airline_postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DEFAULT_DB}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  airline_postgres_data:
+    name: airline-postgres-data

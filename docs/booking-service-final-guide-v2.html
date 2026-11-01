@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Booking Service Technical Design Guide - Airline Booking System</title>
+<style>
+:root{
+  --bg:#f7f9fc; --card:#ffffff; --ink:#1f2937; --muted:#64748b;
+  --line:#d9e1ec; --brand:#0f4c81; --brand2:#1d6fa5;
+  --accent:#e8f2fb; --ok:#146c43; --warn:#9a6700; --bad:#b42318;
+  --code:#0b1220;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;line-height:1.62}
+.wrapper{max-width:1180px;margin:0 auto;padding:0 24px 64px}
+.hero{background:linear-gradient(135deg,#0d3f6e,#1e6fa3);color:white;padding:56px 0 48px;margin-bottom:28px}
+.hero .inner{max-width:1180px;margin:auto;padding:0 24px}
+.hero h1{font-size:40px;line-height:1.15;margin:0 0 12px}
+.hero p{max-width:900px;margin:0;color:#e8f3fb;font-size:18px}
+.badge{display:inline-block;background:#dff0ff;color:#083b66;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
+.toc{position:sticky;top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 4px 14px rgba(15,76,129,.06)}
+.toc h3{margin:0 0 10px;color:var(--brand)}
+.toc a{display:block;color:#334155;text-decoration:none;padding:5px 0;font-size:14px}
+.toc a:hover{color:var(--brand2)}
+main section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;margin-bottom:22px;box-shadow:0 4px 14px rgba(15,76,129,.04)}
+h2{color:var(--brand);margin-top:0;border-bottom:2px solid var(--accent);padding-bottom:10px}
+h3{color:#174f7a;margin-top:26px}
+h4{color:#315d7d;margin-bottom:8px}
+p{margin:8px 0 14px}
+.note,.decision,.warning,.success{border-radius:10px;padding:14px 16px;margin:14px 0}
+.note{background:#f0f7ff;border-left:4px solid var(--brand2)}
+.decision{background:#eefbf4;border-left:4px solid var(--ok)}
+.warning{background:#fff8e6;border-left:4px solid var(--warn)}
+.success{background:#edf9f1;border-left:4px solid var(--ok)}
+code{background:#eef2f7;padding:2px 6px;border-radius:5px;font-family:Consolas,monospace}
+pre{background:var(--code);color:#e5edf7;padding:16px;border-radius:10px;overflow:auto;white-space:pre-wrap;line-height:1.45}
+table{width:100%;border-collapse:collapse;margin:14px 0 22px;font-size:14px}
+th,td{border:1px solid var(--line);padding:10px 11px;vertical-align:top}
+th{background:#edf5fb;color:#164b73;text-align:left}
+tr:nth-child(even) td{background:#fbfdff}
+.small{font-size:13px;color:var(--muted)}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi div{background:#f3f8fc;border:1px solid #d6e5f0;padding:14px;border-radius:10px}
+.kpi b{display:block;color:var(--brand);font-size:18px}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef3f8;font-size:12px;margin-right:5px}
+.footer{color:var(--muted);text-align:center;font-size:13px;margin-top:32px}
+ul{padding-left:22px}
+li{margin:5px 0}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.toc{position:relative}.kpi{grid-template-columns:1fr 1fr}.hero h1{font-size:31px}}
+@media print{.toc{display:none}.grid{display:block}body{background:white}main section{box-shadow:none;break-inside:avoid}.hero{background:#0d3f6e!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header class="hero">
+<div class="inner">
+<div class="badge">FINAL DESIGN GUIDE</div>
+<h1>Booking Service – Airline Booking System</h1>
+<p>Tài liệu thiết kế kỹ thuật dùng làm guide triển khai Booking Service theo hướng DDD + Spring Boot Microservices. Version này đã chuẩn hóa lại Aggregate Boundary: BookingAddon là Entity thuộc Booking Aggregate và ContactInfo được dùng nhất quán trong domain model.</p>
+</div>
+</header>
+<div class="wrapper">
+<div class="grid">
+<aside class="toc">
+<h3>Mục lục</h3>
+<a href="#scope">1. Scope &amp; Assumptions</a>
+<a href="#context">2. Service Context</a>
+<a href="#flow">3. Business Flow</a>
+<a href="#database">4. Database Design</a>
+<a href="#relationships">5. Quan hệ dữ liệu</a>
+<a href="#ddd">6. DDD Model</a>
+<a href="#aggregate">7. Aggregate / Entity / VO</a>
+<a href="#rules">8. Domain Rules</a>
+<a href="#api">9. API Definition</a>
+<a href="#integration">10. Inter-service Integration</a>
+<a href="#sequence">11. Sequence Flows</a>
+<a href="#status">12. Status &amp; State Rules</a>
+<a href="#errors">13. Error Codes</a>
+<a href="#spring">14. Spring Boot Structure</a>
+<a href="#transactions">15. Transaction Boundaries</a>
+<a href="#validation">16. Validation</a>
+<a href="#testing">17. Testing Guide</a>
+<a href="#checklist">18. Implementation Checklist</a>
+</aside>
+<main>
+<section id="scope">
+<h2>1. Scope &amp; Assumptions</h2>
+<div class="decision"><b>Thiết kế được chốt theo nghiệp vụ hiện tại:</b> một Booking gắn với đúng <b>một flight</b>, một <b>fare class</b>, và một <b>số lượng vé</b>. Passenger được nhập <b>sau khi Booking đã thanh toán thành công</b>. Ticket chỉ được sinh sau khi có Passenger.</div>
+<div class="kpi">
+<div><b>1 Booking</b><span>1 Flight</span></div>
+<div><b>1 Booking</b><span>1 Fare Class</span></div>
+<div><b>N Passenger</b><span>theo ticket_quantity</span></div>
+<div><b>1 Passenger</b><span>1 Ticket</span></div>
+</div>
+<h3>Assumptions</h3>
+<ul>
+<li>Frontend đã chọn flight và fare class từ Flying Search Service.</li>
+<li>Booking Service không sở hữu dữ liệu flight, seat inventory hay passenger profile gốc.</li>
+<li>Booking Service chỉ giữ external IDs và snapshot thông tin giá cần thiết.</li>
+<li>Seat có thể chưa chọn; <code>seat_id</code> có thể null và được gán sau.</li>
+<li>Add-on chỉ được thêm sau khi Passenger đã tồn tại.</li>
+<li>Booking chưa thanh toán sẽ hết hạn theo <code>expires_at</code>.</li>
+<li>Đây là project môn học nên ưu tiên thiết kế đơn giản, rõ ràng, có thể code và demo ổn định.</li>
+</ul>
+</section>
+<section id="context">
+<h2>2. Booking Service trong tổng thể hệ thống</h2>
+<pre>
+                    API Gateway
+                         |
+        +----------------+----------------+
+        |                |                |
+        v                v                v
+   User Service    Flying Search     Booking Service
+                   Service
+                                      |
+                         +------------+------------+
+                         |                         |
+                         v                         v
+                   Payment Service        Notification Service
+</pre>
+<h3>Booking Service chịu trách nhiệm</h3>
+<table>
+<tr><th>Nhóm</th><th>Trách nhiệm</th></tr>
+<tr><td>Booking</td><td>Tạo booking, lưu flight/fare snapshot, quantity, contact, total amount, expiry, trạng thái.</td></tr>
+<tr><td>Passenger</td><td>Lưu passenger snapshot sau khi user nhập thông tin.</td></tr>
+<tr><td>Ticket</td><td>Sinh ticket cho passenger, quản lý ticket number, seat và ticket status.</td></tr>
+<tr><td>Add-on</td><td>Quản lý add-on gắn với passenger.</td></tr>
+<tr><td>Integration</td><td>Validate flight/fare/seat từ Flying Search Service; phối hợp Payment Service.</td></tr>
+</table>
+<div class="warning"><b>Không join database giữa microservices.</b> Các field như <code>flight_id</code>, <code>seat_id</code>, <code>user_id</code>, <code>passenger_profile_id</code> chỉ là external reference UUID, không phải foreign key xuyên service.</div>
+</section>
+<section id="flow">
+<h2>3. Business Flow chính</h2>
+<pre>
+Search Flight
+    |
+    v
+Chọn Flight + Fare Class + Quantity
+    |
+    v
+POST /bookings
+    |
+    v
+Booking = PENDING
+expires_at được tạo
+    |
+    +------ hết hạn ------&gt; CANCELLED
+    |
+    v
+Thanh toán
+    |
+    +------ thất bại -----&gt; giữ PENDING hoặc CANCELLED theo policy
+    |
+    v
+Booking = CONFIRMED
+    |
+    v
+User mở Booking History
+    |
+    v
+Nhập Passenger #1
+    |
+    +--&gt; tạo BookingPassenger
+    +--&gt; tạo Ticket #1
+    |
+    v
+Nhập Passenger #2 ...
+    |
+    v
+Chọn Seat (optional)
+    |
+    v
+Thêm Add-ons (optional)
+</pre>
+<div class="note"><b>Ý nghĩa CONFIRMED:</b> booking đã thanh toán và được xác nhận. Nó không bắt buộc có đủ passenger/ticket ngay tại thời điểm đổi trạng thái.</div>
+</section>
+<section id="database">
+<h2>4. Database Design – Final</h2>
+<h3>4.1 Table: bookings</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>Null</th><th>Key / Constraint</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>No</td><td>PK</td><td>Unique identifier của booking.</td></tr>
+<tr><td>2</td><td>booking_ref</td><td>VARCHAR(6)</td><td>No</td><td>UNIQUE</td><td>Mã booking public, ví dụ ABC123.</td></tr>
+<tr><td>3</td><td>user_id</td><td>UUID</td><td>No</td><td>External Ref</td><td>ID user từ User Service.</td></tr>
+<tr><td>4</td><td>flight_id</td><td>UUID</td><td>No</td><td>External Ref</td><td>ID chuyến bay từ Flying Search Service.</td></tr>
+<tr><td>5</td><td>fare_class</td><td>VARCHAR(30)</td><td>No</td><td></td><td>Hạng vé: ECONOMY / BUSINESS / ...</td></tr>
+<tr><td>6</td><td>ticket_quantity</td><td>INTEGER</td><td>No</td><td>CHECK &gt; 0</td><td>Số lượng vé đã mua.</td></tr>
+<tr><td>7</td><td>unit_price</td><td>DECIMAL(15,2)</td><td>No</td><td>CHECK &gt;= 0</td><td>Giá một vé tại thời điểm tạo booking.</td></tr>
+<tr><td>8</td><td>phone</td><td>VARCHAR(30)</td><td>Yes</td><td></td><td>Số điện thoại liên hệ booking owner.</td></tr>
+<tr><td>9</td><td>email</td><td>VARCHAR(255)</td><td>Yes</td><td></td><td>Email liên hệ booking owner.</td></tr>
+<tr><td>10</td><td>status</td><td>VARCHAR(30)</td><td>No</td><td></td><td>PENDING / CONFIRMED / CANCELLED.</td></tr>
+<tr><td>11</td><td>total_amount</td><td>DECIMAL(15,2)</td><td>No</td><td></td><td><code>unit_price * ticket_quantity</code> tại thời điểm booking.</td></tr>
+<tr><td>12</td><td>currency</td><td>VARCHAR(3)</td><td>No</td><td></td><td>VND / USD / ...</td></tr>
+<tr><td>13</td><td>expires_at</td><td>TIMESTAMPTZ</td><td>No</td><td>INDEX</td><td>Thời điểm booking pending hết hạn.</td></tr>
+<tr><td>14</td><td>create_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm tạo.</td></tr>
+<tr><td>15</td><td>update_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm cập nhật gần nhất.</td></tr>
+</table>
+<h3>4.2 Table: booking_passengers</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>Null</th><th>Key / Constraint</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>No</td><td>PK</td><td>ID passenger snapshot trong Booking Service.</td></tr>
+<tr><td>2</td><td>booking_id</td><td>UUID</td><td>No</td><td>FK → bookings.id</td><td>Booking sở hữu passenger.</td></tr>
+<tr><td>3</td><td>passenger_profile_id</td><td>UUID</td><td>Yes</td><td>External Ref</td><td>ID passenger profile từ User Service nếu có.</td></tr>
+<tr><td>4</td><td>fullname</td><td>VARCHAR(150)</td><td>No</td><td></td><td>Họ tên passenger tại thời điểm khai báo.</td></tr>
+<tr><td>5</td><td>passport</td><td>VARCHAR(50)</td><td>Yes</td><td></td><td>Passport/CCCD/document number tùy scope.</td></tr>
+<tr><td>6</td><td>dob</td><td>DATE</td><td>No</td><td></td><td>Ngày sinh.</td></tr>
+<tr><td>7</td><td>phone</td><td>VARCHAR(30)</td><td>Yes</td><td></td><td>Phone của Passenger; cùng email được map thành ContactInfo VO trong domain nếu business cần.</td></tr>
+<tr><td>8</td><td>email</td><td>VARCHAR(255)</td><td>Yes</td><td></td><td>Email của Passenger; cùng phone được map thành ContactInfo VO trong domain nếu business cần.</td></tr>
+<tr><td>9</td><td>create_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm tạo.</td></tr>
+<tr><td>10</td><td>update_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm cập nhật.</td></tr>
+</table>
+<h3>4.3 Table: tickets</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>Null</th><th>Key / Constraint</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>No</td><td>PK</td><td>ID nội bộ ticket.</td></tr>
+<tr><td>2</td><td>ticket_number</td><td>VARCHAR(50)</td><td>No</td><td>UNIQUE</td><td>Mã ticket public.</td></tr>
+<tr><td>3</td><td>booking_passenger_id</td><td>UUID</td><td>No</td><td>FK + UNIQUE</td><td>Passenger sở hữu ticket. UNIQUE để enforce 1 passenger = 1 ticket.</td></tr>
+<tr><td>4</td><td>seat_id</td><td>UUID</td><td>Yes</td><td>External Ref</td><td>Seat từ Flying Search Service; null nếu chưa chọn.</td></tr>
+<tr><td>5</td><td>status</td><td>VARCHAR(30)</td><td>No</td><td></td><td>ISSUED / CANCELLED / REFUNDED.</td></tr>
+<tr><td>6</td><td>create_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm ticket được issue.</td></tr>
+<tr><td>7</td><td>update_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm cập nhật.</td></tr>
+</table>
+<div class="decision"><b>Đã loại bỏ khỏi tickets:</b> <code>flight_id</code>, <code>fare_class</code>, <code>price</code>, <code>booking_id</code>. Các giá trị flight/fare/price được truy xuất thông qua Passenger → Booking. Thiết kế này hợp lệ vì một Booking trong scope hiện tại chỉ có một flight và một fare class.</div>
+<h3>4.4 Table: booking_addons</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>Null</th><th>Key / Constraint</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>No</td><td>PK</td><td>ID addon.</td></tr>
+<tr><td>2</td><td>booking_passenger_id</td><td>UUID</td><td>No</td><td>FK</td><td>Passenger sử dụng addon.</td></tr>
+<tr><td>3</td><td>type</td><td>VARCHAR(30)</td><td>No</td><td></td><td>BAGGAGE / MEAL / ...</td></tr>
+<tr><td>4</td><td>description</td><td>VARCHAR(255)</td><td>Yes</td><td></td><td>Mô tả addon.</td></tr>
+<tr><td>5</td><td>price</td><td>DECIMAL(15,2)</td><td>No</td><td></td><td>Giá addon.</td></tr>
+<tr><td>6</td><td>status</td><td>VARCHAR(30)</td><td>No</td><td></td><td>PENDING / PAID / CANCELLED hoặc policy nhóm chọn.</td></tr>
+<tr><td>7</td><td>create_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm tạo.</td></tr>
+<tr><td>8</td><td>update_at</td><td>TIMESTAMPTZ</td><td>No</td><td></td><td>Thời điểm cập nhật.</td></tr>
+</table>
+<h3>4.5 Recommended indexes</h3>
+<pre>
+UNIQUE INDEX ux_bookings_booking_ref          ON bookings(booking_ref);
+INDEX        ix_bookings_user_id              ON bookings(user_id);
+INDEX        ix_bookings_status               ON bookings(status);
+INDEX        ix_bookings_expires_at           ON bookings(expires_at);
+
+INDEX        ix_passengers_booking_id         ON booking_passengers(booking_id);
+
+UNIQUE INDEX ux_tickets_ticket_number         ON tickets(ticket_number);
+UNIQUE INDEX ux_tickets_passenger_id          ON tickets(booking_passenger_id);
+
+INDEX        ix_addons_passenger_id           ON booking_addons(booking_passenger_id);
+</pre>
+</section>
+
+<section id="relationships">
+<h2>5. Quan hệ dữ liệu và Aggregate Boundary</h2>
+<pre>
+DATABASE RELATIONSHIP
+
+BOOKINGS
+   1
+   |
+   | 1:N
+   v
+BOOKING_PASSENGERS
+   | \
+   |  \ 1:N
+   |   +-------------------&gt; BOOKING_ADDONS
+   |
+   | 1:1
+   v
+TICKETS
+
+
+DDD AGGREGATE BOUNDARY
+
++--------------------------------------------------+
+| Booking Aggregate                                |
+|                                                  |
+| Booking (Root)                                   |
+|   └── BookingPassenger (Entity)                  |
+|         └── BookingAddon (Entity)                |
++--------------------------------------------------+
+
++--------------------------------------------------+
+| Ticket Aggregate                                 |
+|                                                  |
+| Ticket (Root)                                    |
++--------------------------------------------------+
+</pre>
+<table>
+<tr><th>Quan hệ DB</th><th>Cardinality</th><th>DDD interpretation</th></tr>
+<tr><td>Booking → BookingPassenger</td><td>1 : N</td><td>BookingPassenger là Entity thuộc Booking Aggregate.</td></tr>
+<tr><td>BookingPassenger → BookingAddon</td><td>1 : N</td><td>BookingAddon là Entity thuộc Booking Aggregate, không phải Aggregate riêng.</td></tr>
+<tr><td>BookingPassenger → Ticket</td><td>1 : 1</td><td>Ticket là Aggregate Root riêng và tham chiếu Passenger bằng ID.</td></tr>
+</table>
+<div class="note"><b>Lưu ý:</b> Aggregate boundary không đồng nghĩa với database table boundary. Booking, BookingPassenger và BookingAddon vẫn có thể nằm ở ba bảng riêng nhưng cùng thuộc một Aggregate về mặt domain.</div>
+</section>
+
+
+<section id="ddd">
+<h2>6. DDD Model Overview</h2>
+<div class="note">DDD trong project này được áp dụng ở mức vừa đủ: domain model có hành vi và invariant rõ ràng, nhưng tránh tạo quá nhiều Aggregate hoặc kỹ thuật phức tạp không cần thiết.</div>
+<h3>Bounded Context</h3>
+<p><b>Booking Context</b> sở hữu: Booking, BookingPassenger, BookingAddon và Ticket. Dữ liệu Flight, Seat, User Profile chỉ được tham chiếu bằng ID từ service khác.</p>
+<h3>Aggregate boundaries – Final</h3>
+<table>
+<tr><th>Aggregate</th><th>Aggregate Root</th><th>Entities</th><th>Value Objects chính</th><th>Mục đích</th></tr>
+<tr><td>Booking Aggregate</td><td>Booking</td><td>BookingPassenger, BookingAddon</td><td>BookingId, BookingReference, UserId, FlightId, FareClass, TicketQuantity, Money, ContactInfo, BookingPassengerId, PassengerName, PassportNumber, BookingAddonId</td><td>Quản lý lifecycle booking, giới hạn passenger, passenger snapshot và add-on.</td></tr>
+<tr><td>Ticket Aggregate</td><td>Ticket</td><td>Không có child entity</td><td>TicketId, TicketNumber, BookingPassengerId, SeatId</td><td>Quản lý ticket lifecycle và seat assignment độc lập sau khi ticket được issue.</td></tr>
+</table>
+<div class="decision"><b>Quyết định thiết kế:</b> BookingAddon <b>không</b> là Aggregate Root riêng. Addon không có ý nghĩa nghiệp vụ độc lập khỏi BookingPassenger, vì vậy nó được xem là <b>Entity thuộc Booking Aggregate</b>.</div>
+<h3>Aggregate boundary trực quan</h3>
+<pre>
+Booking Aggregate
+================================================
+
+Booking                         &lt;&lt; Aggregate Root &gt;&gt;
+│
+├── BookingId                   &lt;&lt; VO &gt;&gt;
+├── BookingReference            &lt;&lt; VO &gt;&gt;
+├── UserId                      &lt;&lt; VO &gt;&gt;
+├── FlightId                    &lt;&lt; VO &gt;&gt;
+├── FareClass                   &lt;&lt; VO / Enum &gt;&gt;
+├── TicketQuantity              &lt;&lt; VO &gt;&gt;
+├── Money                       &lt;&lt; VO &gt;&gt;
+├── ContactInfo                 &lt;&lt; VO &gt;&gt;
+│
+└── BookingPassenger            &lt;&lt; Entity &gt;&gt;
+      │
+      ├── BookingPassengerId    &lt;&lt; VO &gt;&gt;
+      ├── PassengerName         &lt;&lt; VO &gt;&gt;
+      ├── PassportNumber        &lt;&lt; VO &gt;&gt;
+      ├── ContactInfo           &lt;&lt; VO, optional &gt;&gt;
+      └── BookingAddon          &lt;&lt; Entity &gt;&gt;
+             ├── BookingAddonId &lt;&lt; VO &gt;&gt;
+             ├── AddonType      &lt;&lt; Enum &gt;&gt;
+             ├── Money          &lt;&lt; VO &gt;&gt;
+             └── AddonStatus    &lt;&lt; Enum &gt;&gt;
+
+Ticket Aggregate
+================================================
+
+Ticket                          &lt;&lt; Aggregate Root &gt;&gt;
+│
+├── TicketId                    &lt;&lt; VO &gt;&gt;
+├── TicketNumber                &lt;&lt; VO &gt;&gt;
+├── BookingPassengerId          &lt;&lt; VO &gt;&gt;
+├── SeatId                      &lt;&lt; VO, optional &gt;&gt;
+└── TicketStatus                &lt;&lt; Enum &gt;&gt;
+</pre>
+</section>
+
+
+<section id="aggregate">
+<h2>7. Aggregates, Entities and Value Objects</h2>
+<h3>7.1 Aggregate Root: Booking</h3>
+<p><b>Responsibility:</b> Booking đại diện cho một giao dịch đặt vé và là điểm vào chính để bảo vệ các business rule liên quan đến số lượng vé, trạng thái booking, passenger và add-on.</p>
+<table>
+<tr><th>Attribute</th><th>Type</th><th>Classification</th><th>Description</th></tr>
+<tr><td>id</td><td>BookingId</td><td>VO</td><td>Identity của booking.</td></tr>
+<tr><td>bookingRef</td><td>BookingReference</td><td>VO</td><td>Mã booking public.</td></tr>
+<tr><td>userId</td><td>UserId</td><td>VO</td><td>ID người tạo booking.</td></tr>
+<tr><td>flightId</td><td>FlightId</td><td>VO</td><td>External reference tới flight.</td></tr>
+<tr><td>fareClass</td><td>FareClass</td><td>Enum / VO</td><td>Hạng vé.</td></tr>
+<tr><td>ticketQuantity</td><td>TicketQuantity</td><td>VO</td><td>Số lượng vé được mua.</td></tr>
+<tr><td>unitPrice</td><td>Money</td><td>VO</td><td>Giá một vé.</td></tr>
+<tr><td>totalAmount</td><td>Money</td><td>VO</td><td>Tổng tiền booking.</td></tr>
+<tr><td>contactInfo</td><td>ContactInfo</td><td>VO</td><td>Thông tin liên hệ của người quản lý booking.</td></tr>
+<tr><td>status</td><td>BookingStatus</td><td>Enum</td><td>Trạng thái booking.</td></tr>
+<tr><td>expiresAt</td><td>Instant</td><td>Time value</td><td>Thời điểm hết hạn thanh toán.</td></tr>
+<tr><td>passengers</td><td>List&lt;BookingPassenger&gt;</td><td>Entity collection</td><td>Danh sách passenger thuộc Aggregate.</td></tr>
+</table>
+<h4>Behaviors</h4>
+<pre>
+Booking.create(...)
+booking.confirmPayment()
+booking.cancel()
+booking.isExpired(now)
+booking.addPassenger(passenger)
+booking.canAddPassenger()
+booking.remainingPassengerSlots()
+booking.addAddon(passengerId, addon)
+booking.removeAddon(passengerId, addonId)
+</pre>
+<h4>Business invariants</h4>
+<ul>
+<li>Booking mới luôn ở trạng thái <code>PENDING</code>.</li>
+<li><code>ticketQuantity &gt; 0</code>.</li>
+<li><code>totalAmount = unitPrice × ticketQuantity</code>.</li>
+<li>Chỉ Booking <code>CONFIRMED</code> mới được thêm passenger.</li>
+<li>Số passenger không được vượt <code>ticketQuantity</code>.</li>
+<li>Addon chỉ được thêm cho passenger thuộc chính Booking đó.</li>
+<li>Booking <code>CANCELLED</code> không được confirm lại.</li>
+</ul>
+<h3>7.2 Entity: BookingPassenger</h3>
+<p><b>Why Entity?</b> BookingPassenger có identity riêng và lifecycle gắn với Booking. Hai passenger có thể có cùng tên nhưng vẫn là hai Entity khác nhau.</p>
+<table>
+<tr><th>Attribute</th><th>Type</th><th>Classification</th><th>Description</th></tr>
+<tr><td>id</td><td>BookingPassengerId</td><td>VO</td><td>Identity của passenger trong Booking Service.</td></tr>
+<tr><td>passengerProfileId</td><td>PassengerProfileId</td><td>VO, optional</td><td>Reference tới User Service nếu có.</td></tr>
+<tr><td>fullName</td><td>PassengerName</td><td>VO</td><td>Họ tên passenger.</td></tr>
+<tr><td>passport</td><td>PassportNumber</td><td>VO, optional</td><td>Passport/CCCD/document number.</td></tr>
+<tr><td>dob</td><td>LocalDate</td><td>Value</td><td>Ngày sinh.</td></tr>
+<tr><td>contactInfo</td><td>ContactInfo</td><td>VO, optional</td><td>Thông tin liên hệ riêng của passenger nếu business cần.</td></tr>
+<tr><td>addons</td><td>List&lt;BookingAddon&gt;</td><td>Entity collection</td><td>Các add-on thuộc passenger.</td></tr>
+</table>
+<div class="note"><b>ContactInfo trong Booking và Passenger:</b> cùng dùng một Value Object vì đều biểu diễn phone + email. Tuy nhiên <code>Booking.contactInfo</code> là contact của người quản lý booking, còn <code>BookingPassenger.contactInfo</code> là contact riêng của passenger và có thể optional. Nếu project không có nghiệp vụ dùng contact riêng của passenger, có thể bỏ phone/email khỏi bảng booking_passengers và bỏ VO này khỏi BookingPassenger.</div>
+<h3>7.3 Entity: BookingAddon</h3>
+<p><b>Why Entity?</b> BookingAddon có identity, status và lifecycle riêng nhưng không có ý nghĩa độc lập khỏi Passenger. Vì vậy nó là <b>Entity thuộc Booking Aggregate</b>, không phải Aggregate Root.</p>
+<table>
+<tr><th>Attribute</th><th>Type</th><th>Classification</th><th>Description</th></tr>
+<tr><td>id</td><td>BookingAddonId</td><td>VO</td><td>Identity của addon.</td></tr>
+<tr><td>type</td><td>AddonType</td><td>Enum</td><td>Loại addon.</td></tr>
+<tr><td>description</td><td>String</td><td>Value</td><td>Mô tả addon.</td></tr>
+<tr><td>price</td><td>Money</td><td>VO</td><td>Giá addon.</td></tr>
+<tr><td>status</td><td>AddonStatus</td><td>Enum</td><td>Trạng thái addon.</td></tr>
+</table>
+<h4>Rules</h4>
+<ul>
+<li>Addon chỉ tồn tại khi Passenger đã tồn tại.</li>
+<li>Addon luôn thuộc đúng một BookingPassenger.</li>
+<li>Mọi thao tác thêm/xóa addon nên đi qua Booking Aggregate để đảm bảo consistency.</li>
+</ul>
+<h3>7.4 Aggregate Root: Ticket</h3>
+<p><b>Responsibility:</b> Ticket đại diện cho vé điện tử được issue cho một Passenger và có lifecycle độc lập tương đối sau khi được tạo.</p>
+<table>
+<tr><th>Attribute</th><th>Type</th><th>Classification</th><th>Description</th></tr>
+<tr><td>id</td><td>TicketId</td><td>VO</td><td>ID nội bộ ticket.</td></tr>
+<tr><td>ticketNumber</td><td>TicketNumber</td><td>VO</td><td>Mã ticket public.</td></tr>
+<tr><td>bookingPassengerId</td><td>BookingPassengerId</td><td>VO</td><td>Reference tới passenger sở hữu ticket.</td></tr>
+<tr><td>seatId</td><td>SeatId</td><td>VO, optional</td><td>External seat reference.</td></tr>
+<tr><td>status</td><td>TicketStatus</td><td>Enum</td><td>ISSUED / CANCELLED / REFUNDED.</td></tr>
+</table>
+<h4>Behaviors</h4>
+<pre>
+Ticket.issue(passengerId, ticketNumber)
+ticket.assignSeat(seatId)
+ticket.removeSeat()
+ticket.cancel()
+ticket.markRefunded()
+</pre>
+<h4>Business invariants</h4>
+<ul>
+<li>Ticket chỉ được tạo khi Passenger đã tồn tại.</li>
+<li>Mỗi Passenger chỉ được có một Ticket.</li>
+<li><code>seatId</code> có thể null.</li>
+<li>Seat được assign phải thuộc đúng Flight của Booking.</li>
+</ul>
+<h3>7.5 Value Objects</h3>
+<table>
+<tr><th>Value Object</th><th>Representation</th><th>Validation</th><th>Used by</th></tr>
+<tr><td>BookingId</td><td>UUID</td><td>not null</td><td>Booking</td></tr>
+<tr><td>BookingReference</td><td>String</td><td><code>[A-Z0-9]{6}</code></td><td>Booking</td></tr>
+<tr><td>UserId</td><td>UUID</td><td>not null</td><td>Booking</td></tr>
+<tr><td>FlightId</td><td>UUID</td><td>not null</td><td>Booking</td></tr>
+<tr><td>SeatId</td><td>UUID</td><td>optional</td><td>Ticket</td></tr>
+<tr><td>FareClass</td><td>Enum/value</td><td>hợp lệ</td><td>Booking</td></tr>
+<tr><td>TicketQuantity</td><td>int</td><td>&gt; 0</td><td>Booking</td></tr>
+<tr><td>Money</td><td>amount + currency</td><td>amount ≥ 0</td><td>Booking, BookingAddon</td></tr>
+<tr><td>ContactInfo</td><td>PhoneNumber + EmailAddress</td><td>format hợp lệ</td><td>Booking, optional Passenger</td></tr>
+<tr><td>PassengerName</td><td>String</td><td>not blank</td><td>BookingPassenger</td></tr>
+<tr><td>PassportNumber</td><td>String</td><td>optional / format policy</td><td>BookingPassenger</td></tr>
+<tr><td>BookingPassengerId</td><td>UUID</td><td>not null</td><td>Passenger, Ticket</td></tr>
+<tr><td>BookingAddonId</td><td>UUID</td><td>not null</td><td>BookingAddon</td></tr>
+<tr><td>TicketId</td><td>UUID</td><td>not null</td><td>Ticket</td></tr>
+<tr><td>TicketNumber</td><td>String</td><td>unique, non-empty</td><td>Ticket</td></tr>
+</table>
+<h3>7.6 Entity vs Value Object</h3>
+<table>
+<tr><th>Tiêu chí</th><th>Entity</th><th>Value Object</th></tr>
+<tr><td>Identity</td><td>Có identity riêng</td><td>Không có identity riêng</td></tr>
+<tr><td>Equality</td><td>So sánh theo ID</td><td>So sánh theo giá trị</td></tr>
+<tr><td>Lifecycle</td><td>Có thể thay đổi theo thời gian</td><td>Thường immutable</td></tr>
+<tr><td>Ví dụ</td><td>BookingPassenger, BookingAddon</td><td>Money, ContactInfo, BookingReference</td></tr>
+</table>
+</section>
+
+<section id="rules">
+<h2>8. Domain Rules / Invariants</h2>
+<table>
+<tr><th>#</th><th>Rule</th></tr>
+<tr><td>BR-01</td><td>Booking mới luôn ở trạng thái <b>PENDING</b>.</td></tr>
+<tr><td>BR-02</td><td><code>expires_at</code> phải lớn hơn thời điểm tạo booking.</td></tr>
+<tr><td>BR-03</td><td><code>ticket_quantity &gt; 0</code>.</td></tr>
+<tr><td>BR-04</td><td><code>total_amount = unit_price × ticket_quantity</code>.</td></tr>
+<tr><td>BR-05</td><td>Chỉ Booking <b>CONFIRMED</b> mới được thêm Passenger.</td></tr>
+<tr><td>BR-06</td><td>Số BookingPassenger không được vượt quá <code>ticket_quantity</code>.</td></tr>
+<tr><td>BR-07</td><td>Tạo Passenger thành công thì issue đúng 1 Ticket cho Passenger đó.</td></tr>
+<tr><td>BR-08</td><td>Mỗi BookingPassenger chỉ được có tối đa 1 Ticket.</td></tr>
+<tr><td>BR-09</td><td>Seat có thể null.</td></tr>
+<tr><td>BR-10</td><td>Khi assign seat, seat phải thuộc đúng flight của Booking và đang available.</td></tr>
+<tr><td>BR-11</td><td>Addon chỉ được tạo cho Passenger đã tồn tại.</td></tr>
+<tr><td>BR-12</td><td>Booking PENDING hết hạn thì chuyển CANCELLED.</td></tr>
+<tr><td>BR-13</td><td>Booking CANCELLED không được confirm lại.</td></tr>
+<tr><td>BR-14</td><td>Giá booking không lấy lại từ Flying Search Service khi xem lịch sử; dùng snapshot trong Booking.</td></tr>
+</table>
+</section>
+<section id="api">
+<h2>9. API Definition</h2>
+<h3>9.1 Booking APIs</h3>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>External communication</th></tr>
+<tr><td>POST</td><td>/api/v1/bookings</td><td>Create pending booking</td><td>Flying Search Service</td></tr>
+<tr><td>GET</td><td>/api/v1/bookings/{bookingId}</td><td>Get booking detail</td><td>Không bắt buộc</td></tr>
+<tr><td>GET</td><td>/api/v1/bookings/ref/{bookingRef}</td><td>Get booking by reference</td><td>Không bắt buộc</td></tr>
+<tr><td>GET</td><td>/api/v1/bookings/me</td><td>Booking history của current user</td><td>Không bắt buộc</td></tr>
+<tr><td>POST</td><td>/api/v1/bookings/{bookingId}/cancel</td><td>Cancel pending/confirmed booking theo rule</td><td>Payment Service nếu refund</td></tr>
+<tr><td>POST</td><td>/api/v1/bookings/{bookingId}/payment</td><td>Khởi tạo payment</td><td>Payment Service</td></tr>
+</table>
+<h4>POST /api/v1/bookings</h4>
+<pre>
+Request
+{
+  "flightId": "uuid",
+  "fareClass": "ECONOMY",
+  "quantity": 2,
+  "contact": {
+    "phone": "0123456789",
+    "email": "user@example.com"
+  }
+}
+
+Response 201
+{
+  "bookingId": "uuid",
+  "bookingRef": "ABC123",
+  "status": "PENDING",
+  "flightId": "uuid",
+  "fareClass": "ECONOMY",
+  "ticketQuantity": 2,
+  "unitPrice": {
+    "amount": 1500000,
+    "currency": "VND"
+  },
+  "totalAmount": {
+    "amount": 3000000,
+    "currency": "VND"
+  },
+  "expiresAt": "2026-10-24T10:30:00+07:00"
+}
+</pre>
+<h3>9.2 Passenger APIs</h3>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+<tr><td>POST</td><td>/api/v1/bookings/{bookingId}/passengers</td><td>Tạo passenger và issue ticket trong cùng use case.</td></tr>
+<tr><td>PUT</td><td>/api/v1/bookings/{bookingId}/passengers/{passengerId}</td><td>Cập nhật passenger nếu policy cho phép.</td></tr>
+<tr><td>GET</td><td>/api/v1/bookings/{bookingId}/passengers</td><td>Danh sách passenger của booking.</td></tr>
+</table>
+<h4>POST /api/v1/bookings/{bookingId}/passengers</h4>
+<pre>
+Request
+{
+  "passengerProfileId": "uuid-or-null",
+  "fullName": "Nguyen Van A",
+  "passport": "B1234567",
+  "dob": "2003-05-10",
+  "phone": "0123456789",
+  "email": "a@example.com"
+}
+
+Response 201
+{
+  "passengerId": "uuid",
+  "ticket": {
+    "ticketId": "uuid",
+    "ticketNumber": "TKT202600001",
+    "seatId": null,
+    "status": "ISSUED"
+  }
+}
+</pre>
+<h3>9.3 Ticket APIs</h3>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th><th>External communication</th></tr>
+<tr><td>GET</td><td>/api/v1/tickets/{ticketId}</td><td>Ticket detail</td><td>Không</td></tr>
+<tr><td>PUT</td><td>/api/v1/tickets/{ticketId}/seat</td><td>Assign/change seat</td><td>Flying Search Service</td></tr>
+<tr><td>DELETE</td><td>/api/v1/tickets/{ticketId}/seat</td><td>Remove selected seat</td><td>Flying Search Service</td></tr>
+<tr><td>POST</td><td>/api/v1/tickets/{ticketId}/cancel</td><td>Cancel ticket nếu scope yêu cầu</td><td>Payment Service optional</td></tr>
+</table>
+<h4>PUT /api/v1/tickets/{ticketId}/seat</h4>
+<pre>
+Request
+{
+  "seatId": "uuid"
+}
+
+Response 200
+{
+  "ticketId": "uuid",
+  "ticketNumber": "TKT202600001",
+  "seatId": "uuid",
+  "status": "ISSUED"
+}
+</pre>
+<h3>9.4 Add-on APIs</h3>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+<tr><td>POST</td><td>/api/v1/passengers/{passengerId}/addons</td><td>Add addon cho passenger.</td></tr>
+<tr><td>GET</td><td>/api/v1/passengers/{passengerId}/addons</td><td>List addons.</td></tr>
+<tr><td>DELETE</td><td>/api/v1/passengers/{passengerId}/addons/{addonId}</td><td>Cancel/remove addon.</td></tr>
+</table>
+<h4>POST /api/v1/passengers/{passengerId}/addons</h4>
+<pre>
+Request
+{
+  "type": "BAGGAGE",
+  "description": "20kg checked baggage"
+}
+
+Response 201
+{
+  "addonId": "uuid",
+  "type": "BAGGAGE",
+  "price": {
+    "amount": 300000,
+    "currency": "VND"
+  },
+  "status": "PENDING"
+}
+</pre>
+</section>
+<section id="integration">
+<h2>10. Inter-service Integration</h2>
+<h3>10.1 Booking → Flying Search Service</h3>
+<table>
+<tr><th>Use case</th><th>Suggested API</th><th>Mục đích</th></tr>
+<tr><td>Create Booking</td><td>GET /internal/v1/flights/{flightId}</td><td>Validate flight tồn tại và bookable.</td></tr>
+<tr><td>Create Booking</td><td>GET /internal/v1/flights/{flightId}/fares/{fareClass}</td><td>Lấy unit price + currency + availability.</td></tr>
+<tr><td>Assign Seat</td><td>GET /internal/v1/flights/{flightId}/seats/{seatId}</td><td>Validate seat thuộc flight và available.</td></tr>
+<tr><td>Assign Seat</td><td>POST /internal/v1/flights/{flightId}/seats/{seatId}/assign</td><td>Đánh dấu seat đã được dùng.</td></tr>
+<tr><td>Remove Seat</td><td>DELETE /internal/v1/flights/{flightId}/seats/{seatId}/assignment</td><td>Release seat.</td></tr>
+</table>
+<h3>10.2 Booking → Payment Service</h3>
+<table>
+<tr><th>Use case</th><th>Suggested API</th><th>Mục đích</th></tr>
+<tr><td>Start payment</td><td>POST /internal/v1/payments</td><td>Tạo payment theo booking.</td></tr>
+<tr><td>Payment callback</td><td>POST /internal/v1/bookings/{bookingId}/payment-result</td><td>Payment Service báo SUCCESS/FAILED.</td></tr>
+<tr><td>Refund optional</td><td>POST /internal/v1/refunds</td><td>Refund khi cancel sau thanh toán.</td></tr>
+</table>
+<div class="note"><b>Cho project môn học:</b> dùng HTTP synchronous giữa các service là đủ. Kafka/event-driven chỉ nên thêm nếu môn học yêu cầu hoặc nhóm đã thống nhất.</div>
+<h3>10.3 Booking → User Service</h3>
+<p>Không bắt buộc phải gọi User Service khi user tự nhập passenger. Chỉ cần nếu muốn auto-fill từ passenger profile:</p>
+<pre>
+GET /internal/v1/passengers/{passengerProfileId}
+</pre>
+</section>
+<section id="sequence">
+<h2>11. Sequence Flows</h2>
+<h3>11.1 Create Booking</h3>
+<pre>
+Client
+  |
+  | POST /bookings
+  v
+Booking Controller
+  |
+  v
+CreateBookingUseCase
+  |
+  +--&gt; FlightServicePort.getFlight()
+  |
+  +--&gt; FlightServicePort.getFare()
+  |
+  +--&gt; validate quantity &lt;= availability
+  |
+  +--&gt; calculate total
+  |
+  +--&gt; Booking.create(...)
+  |
+  +--&gt; BookingRepository.save()
+  |
+  v
+201 Created
+</pre>
+<h3>11.2 Payment Success</h3>
+<pre>
+Client
+  |
+  | POST /bookings/{id}/payment
+  v
+Booking Service
+  |
+  +--&gt; Payment Service: create payment
+  |
+  v
+Payment result callback
+  |
+  v
+Booking Service
+  |
+  +--&gt; booking.confirmPayment()
+  |
+  +--&gt; save booking
+  |
+  v
+Booking = CONFIRMED
+</pre>
+<h3>11.3 Add Passenger + Issue Ticket</h3>
+<pre>
+Client
+  |
+  | POST /bookings/{id}/passengers
+  v
+Booking Service
+  |
+  +--&gt; load Booking
+  |
+  +--&gt; assert status == CONFIRMED
+  |
+  +--&gt; assert passengerCount &lt; ticketQuantity
+  |
+  +--&gt; create BookingPassenger
+  |
+  +--&gt; save Passenger
+  |
+  +--&gt; generate TicketNumber
+  |
+  +--&gt; create Ticket
+  |
+  +--&gt; save Ticket
+  |
+  v
+201 Passenger + Ticket
+</pre>
+<h3>11.4 Assign Seat</h3>
+<pre>
+Client
+  |
+  | PUT /tickets/{ticketId}/seat
+  v
+Booking Service
+  |
+  +--&gt; load Ticket
+  |
+  +--&gt; Passenger -&gt; Booking -&gt; flightId
+  |
+  +--&gt; Flying Search Service: validate seat
+  |
+  +--&gt; assign seat externally
+  |
+  +--&gt; ticket.assignSeat()
+  |
+  +--&gt; save Ticket
+  |
+  v
+200 OK
+</pre>
+<h3>11.5 Booking Expiration</h3>
+<pre>
+Scheduled Job
+  |
+  +--&gt; find bookings
+       status = PENDING
+       expires_at &lt; now
+  |
+  +--&gt; booking.cancel()
+  |
+  +--&gt; save
+</pre>
+</section>
+<section id="status">
+<h2>12. Status &amp; State Rules</h2>
+<h3>BookingStatus</h3>
+<pre>
+PENDING ----payment success----&gt; CONFIRMED
+   |
+   +----expired / cancel-------&gt; CANCELLED
+
+CONFIRMED ----cancel policy----&gt; CANCELLED
+</pre>
+<table>
+<tr><th>From</th><th>Action</th><th>To</th><th>Allowed?</th></tr>
+<tr><td>PENDING</td><td>Payment success</td><td>CONFIRMED</td><td>Yes</td></tr>
+<tr><td>PENDING</td><td>Expire</td><td>CANCELLED</td><td>Yes</td></tr>
+<tr><td>PENDING</td><td>User cancel</td><td>CANCELLED</td><td>Yes</td></tr>
+<tr><td>CONFIRMED</td><td>Add passenger</td><td>CONFIRMED</td><td>Yes</td></tr>
+<tr><td>CONFIRMED</td><td>Cancel</td><td>CANCELLED</td><td>Policy-dependent</td></tr>
+<tr><td>CANCELLED</td><td>Confirm</td><td>CONFIRMED</td><td>No</td></tr>
+</table>
+<h3>TicketStatus</h3>
+<pre>
+ISSUED ---&gt; CANCELLED
+   |
+   +------&gt; REFUNDED
+</pre>
+<h3>AddonStatus</h3>
+<p>Đề xuất đơn giản: <code>PENDING</code>, <code>PAID</code>, <code>CANCELLED</code>. Nếu nhóm không làm payment addon riêng thì có thể dùng <code>ACTIVE</code>/<code>CANCELLED</code>.</p>
+</section>
+<section id="errors">
+<h2>13. Error Codes &amp; HTTP Mapping</h2>
+<table>
+<tr><th>Code</th><th>HTTP</th><th>Meaning</th></tr>
+<tr><td>BOOKING_NOT_FOUND</td><td>404</td><td>Không tìm thấy booking.</td></tr>
+<tr><td>BOOKING_EXPIRED</td><td>409</td><td>Booking đã hết hạn.</td></tr>
+<tr><td>INVALID_BOOKING_STATE</td><td>409</td><td>Operation không hợp lệ với trạng thái hiện tại.</td></tr>
+<tr><td>PASSENGER_LIMIT_EXCEEDED</td><td>409</td><td>Passenger vượt ticket_quantity.</td></tr>
+<tr><td>PASSENGER_NOT_FOUND</td><td>404</td><td>Không tìm thấy passenger.</td></tr>
+<tr><td>TICKET_NOT_FOUND</td><td>404</td><td>Không tìm thấy ticket.</td></tr>
+<tr><td>FLIGHT_NOT_FOUND</td><td>404 / 422</td><td>Flight không tồn tại.</td></tr>
+<tr><td>FARE_NOT_AVAILABLE</td><td>409</td><td>Fare class không còn đủ availability.</td></tr>
+<tr><td>SEAT_NOT_AVAILABLE</td><td>409</td><td>Seat không còn trống.</td></tr>
+<tr><td>PAYMENT_FAILED</td><td>402 / 409</td><td>Payment thất bại.</td></tr>
+<tr><td>VALIDATION_ERROR</td><td>400</td><td>Request không hợp lệ.</td></tr>
+</table>
+<h4>Standard error response</h4>
+<pre>
+{
+  "code": "PASSENGER_LIMIT_EXCEEDED",
+  "message": "Passenger count cannot exceed ticket quantity",
+  "timestamp": "2026-10-24T09:30:00+07:00",
+  "path": "/api/v1/bookings/{id}/passengers"
+}
+</pre>
+</section>
+<section id="spring">
+<h2>14. Spring Boot Package Structure</h2>
+<pre>com.airline.booking
+
+booking/
+  domain/
+    model/
+      Booking.java
+      BookingPassenger.java
+      BookingAddon.java
+      BookingStatus.java
+      AddonType.java
+      AddonStatus.java
+    vo/
+      BookingId.java
+      BookingReference.java
+      BookingPassengerId.java
+      BookingAddonId.java
+      FlightId.java
+      FareClass.java
+      TicketQuantity.java
+      Money.java
+      ContactInfo.java
+      PassengerName.java
+      PassportNumber.java
+    repository/
+      BookingRepository.java
+
+  application/
+    command/
+      CreateBookingCommand.java
+      AddPassengerCommand.java
+      AddAddonCommand.java
+      RemoveAddonCommand.java
+      CancelBookingCommand.java
+    usecase/
+      CreateBookingUseCase.java
+      AddPassengerUseCase.java
+      AddAddonUseCase.java
+      RemoveAddonUseCase.java
+      ConfirmPaymentUseCase.java
+      CancelBookingUseCase.java
+      GetBookingUseCase.java
+    port/
+      FlightSearchPort.java
+      PaymentPort.java
+
+ticket/
+  domain/
+    model/
+      Ticket.java
+      TicketStatus.java
+    vo/
+      TicketId.java
+      TicketNumber.java
+      SeatId.java
+    repository/
+      TicketRepository.java
+  application/
+    AssignSeatUseCase.java
+    GetTicketUseCase.java
+    CancelTicketUseCase.java
+
+infrastructure/
+  persistence/
+    entity/
+    repository/
+    mapper/
+  client/
+    flight/
+    payment/
+    user/
+  web/
+    controller/
+    request/
+    response/
+  config/
+  exception/
+</pre>
+<h3>Recommended layer direction</h3>
+<pre>
+Controller
+   |
+   v
+Application Use Case
+   |
+   +--&gt; Domain
+   |
+   +--&gt; Port Interface
+            ^
+            |
+      Infrastructure Adapter
+</pre>
+<div class="warning">Không inject FeignClient/RestClient trực tiếp vào Domain Model. Domain chỉ biết interface/port ở application/domain boundary.</div>
+</section>
+<section id="transactions">
+<h2>15. Transaction Boundaries</h2>
+<table>
+<tr><th>Use case</th><th>Transaction local</th><th>Lưu ý</th></tr>
+<tr><td>Create Booking</td><td>Save Booking</td><td>External flight lookup nên thực hiện trước transaction DB hoặc transaction ngắn.</td></tr>
+<tr><td>Payment callback</td><td>Update Booking status</td><td>Phải idempotent nếu callback gửi lại.</td></tr>
+<tr><td>Add Passenger</td><td>Create Passenger + Create Ticket</td><td>Nên cùng một local DB transaction.</td></tr>
+<tr><td>Assign Seat</td><td>Update Ticket</td><td>External seat assignment và DB update cần xử lý lỗi rõ ràng.</td></tr>
+<tr><td>Add Addon</td><td>Create Addon</td><td>Nếu có payment addon, tách payment flow.</td></tr>
+</table>
+<h3>Idempotency cần tối thiểu ở đâu?</h3>
+<ul>
+<li>Payment callback: nếu Payment Service callback 2 lần thì booking vẫn chỉ confirm một lần.</li>
+<li>Ticket issuance: unique constraint trên <code>booking_passenger_id</code> ngăn tạo 2 ticket cho cùng passenger.</li>
+<li>Booking reference / ticket number có unique constraint.</li>
+</ul>
+</section>
+<section id="validation">
+<h2>16. Validation Rules</h2>
+<h3>Create Booking</h3>
+<ul>
+<li>flightId bắt buộc.</li>
+<li>fareClass bắt buộc.</li>
+<li>quantity &gt; 0.</li>
+<li>Flight phải bookable.</li>
+<li>Fare class phải tồn tại trên flight.</li>
+<li>Availability phải ≥ quantity.</li>
+<li>unitPrice và totalAmount phải do backend tính.</li>
+</ul>
+<h3>Add Passenger</h3>
+<ul>
+<li>Booking phải tồn tại.</li>
+<li>Booking phải CONFIRMED.</li>
+<li>Passenger count &lt; ticketQuantity.</li>
+<li>fullName không rỗng.</li>
+<li>dob hợp lệ.</li>
+<li>passport/document theo rule project.</li>
+</ul>
+<h3>Assign Seat</h3>
+<ul>
+<li>Ticket phải tồn tại và status = ISSUED.</li>
+<li>Seat phải thuộc flight của Booking.</li>
+<li>Seat phải available.</li>
+<li>Nếu đổi seat: release seat cũ trước hoặc xử lý atomically ở Flying Search Service.</li>
+</ul>
+</section>
+<section id="testing">
+<h2>17. Testing Guide</h2>
+<h3>Unit tests cho Domain</h3>
+<table>
+<tr><th>Test</th><th>Expected</th></tr>
+<tr><td>Create booking quantity = 0</td><td>Reject</td></tr>
+<tr><td>Confirm PENDING booking</td><td>CONFIRMED</td></tr>
+<tr><td>Confirm CANCELLED booking</td><td>Reject</td></tr>
+<tr><td>Add passenger khi PENDING</td><td>Reject</td></tr>
+<tr><td>Add passenger khi đã đủ quantity</td><td>Reject</td></tr>
+<tr><td>Issue second ticket cho same passenger</td><td>Reject / unique violation mapped to domain error</td></tr>
+<tr><td>Assign null seat</td><td>Allowed khi remove seat</td></tr>
+</table>
+<h3>Integration tests</h3>
+<ul>
+<li>Create Booking gọi mock Flying Search Service.</li>
+<li>Payment callback cập nhật CONFIRMED.</li>
+<li>Add Passenger tạo cả passenger và ticket trong cùng transaction.</li>
+<li>Assign Seat xử lý case available và unavailable.</li>
+<li>Booking expiration job chỉ cancel PENDING hết hạn.</li>
+</ul>
+</section>
+<section id="checklist">
+<h2>18. Implementation Checklist</h2>
+<h3>Phase 1 – Database &amp; Domain</h3>
+<ul>
+<li>[ ] Sửa bảng bookings: thêm flight_id, fare_class, ticket_quantity, unit_price.</li>
+<li>[ ] Sửa tickets: bỏ flight_id, fare_class, price; giữ seat_id nullable.</li>
+<li>[ ] Thêm unique booking_ref và ticket_number.</li>
+<li>[ ] Enforce 1 passenger = 1 ticket.</li>
+<li>[ ] Tạo domain enums và VOs.</li>
+<li>[ ] Tạo Booking aggregate rules.</li>
+</ul>
+<h3>Phase 2 – Core APIs</h3>
+<ul>
+<li>[ ] POST /bookings</li>
+<li>[ ] GET /bookings/{id}</li>
+<li>[ ] GET /bookings/ref/{bookingRef}</li>
+<li>[ ] GET /bookings/me</li>
+<li>[ ] POST /bookings/{id}/payment</li>
+<li>[ ] Payment result callback</li>
+<li>[ ] POST /bookings/{id}/passengers</li>
+</ul>
+<h3>Phase 3 – Ticket &amp; Seat</h3>
+<ul>
+<li>[ ] Ticket number generator.</li>
+<li>[ ] GET /tickets/{id}</li>
+<li>[ ] PUT /tickets/{id}/seat</li>
+<li>[ ] DELETE /tickets/{id}/seat</li>
+</ul>
+<h3>Phase 4 – Add-ons &amp; Cancellation</h3>
+<ul>
+<li>[ ] Add-on CRUD theo business rule.</li>
+<li>[ ] Booking cancel.</li>
+<li>[ ] Ticket cancel/refund nếu scope yêu cầu.</li>
+</ul>
+<h3>Phase 5 – Technical Quality</h3>
+<ul>
+<li>[ ] Global exception handler.</li>
+<li>[ ] Validation annotations + domain validation.</li>
+<li>[ ] Scheduled expiration job.</li>
+<li>[ ] API documentation bằng Swagger/OpenAPI.</li>
+<li>[ ] Unit test + integration test.</li>
+<li>[ ] Logging có bookingId/bookingRef.</li>
+</ul>
+<div class="success">
+<b>Thiết kế final được khuyến nghị để code:</b><br/>
+Booking giữ flight/fare/quantity/price snapshot → Payment xác nhận Booking → Passenger được nhập sau → mỗi Passenger tạo đúng một Ticket → Seat nullable → Add-on gắn Passenger. Đây là mô hình đủ chặt cho DDD, đủ đơn giản cho project môn học, và tránh dữ liệu trùng lặp không cần thiết trong Ticket.
+</div>
+</section>
+<section>
+<h2>Appendix A – Suggested Java Types</h2>
+<pre>
+enum BookingStatus {
+    PENDING,
+    CONFIRMED,
+    CANCELLED
+}
+
+enum TicketStatus {
+    ISSUED,
+    CANCELLED,
+    REFUNDED
+}
+
+enum FareClass {
+    ECONOMY,
+    PREMIUM_ECONOMY,
+    BUSINESS,
+    FIRST
+}
+
+enum AddonType {
+    BAGGAGE,
+    MEAL,
+    PRIORITY_BOARDING
+}
+
+record Money(BigDecimal amount, Currency currency) {}
+
+record BookingReference(String value) {}
+
+record TicketQuantity(int value) {}
+
+record ContactInfo(String phone, String email) {}
+</pre>
+</section>
+<section>
+<h2>Appendix B – Minimal API ownership matrix</h2>
+<table>
+<tr><th>Business step</th><th>Owner Service</th><th>Booking Service action</th></tr>
+<tr><td>Search flight</td><td>Flying Search</td><td>Không xử lý.</td></tr>
+<tr><td>Validate selected flight/fare</td><td>Flying Search</td><td>Gọi internal API.</td></tr>
+<tr><td>Create booking</td><td>Booking</td><td>Core responsibility.</td></tr>
+<tr><td>Payment</td><td>Payment</td><td>Khởi tạo + nhận kết quả.</td></tr>
+<tr><td>Passenger snapshot</td><td>Booking</td><td>Lưu local snapshot.</td></tr>
+<tr><td>Issue ticket</td><td>Booking</td><td>Core responsibility.</td></tr>
+<tr><td>Seat availability</td><td>Flying Search</td><td>Validate/assign qua API.</td></tr>
+<tr><td>Add-on</td><td>Booking</td><td>Core responsibility.</td></tr>
+<tr><td>Email notification</td><td>Notification</td><td>Optional call/event.</td></tr>
+</table>
+</section>
+</main>
+</div>
+<div class="footer">
+Booking Service Technical Design Guide • Airline Booking System • Final project-oriented version
+</div>
+</div>
+</body>
+</html>

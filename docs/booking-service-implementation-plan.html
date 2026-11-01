@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking Service Implementation Plan</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --text: #182230;
+      --muted: #526071;
+      --primary: #185adb;
+      --primary-soft: #eaf1ff;
+      --border: #dce3ed;
+      --success: #18794e;
+      --success-soft: #e8f7ef;
+      --warning: #9a6700;
+      --warning-soft: #fff6d8;
+      --danger: #b42318;
+      --danger-soft: #ffebe9;
+      --code: #f1f4f8;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.65;
+    }
+
+    header {
+      padding: 56px 24px;
+      color: #fff;
+      background: linear-gradient(135deg, #123b8f, #2675ea);
+    }
+
+    header .inner, main, footer {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    header h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      line-height: 1.15;
+    }
+
+    header p {
+      max-width: 800px;
+      margin: 0;
+      color: #e6efff;
+      font-size: 1.08rem;
+    }
+
+    main { padding: 32px 0 64px; }
+
+    section, nav {
+      margin-bottom: 24px;
+      padding: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 6px 22px rgba(24, 34, 48, 0.05);
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      color: #15376f;
+      font-size: 1.55rem;
+    }
+
+    h3 {
+      margin: 26px 0 10px;
+      color: #24466f;
+      font-size: 1.18rem;
+    }
+
+    p { margin: 10px 0; }
+
+    ul, ol { padding-left: 24px; }
+
+    li + li { margin-top: 6px; }
+
+    a { color: var(--primary); }
+
+    nav ul {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 8px 22px;
+      margin: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      text-align: left;
+      vertical-align: top;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      color: #17355d;
+      background: #edf3fb;
+    }
+
+    tbody tr:nth-child(even) { background: #fafcff; }
+
+    code, pre {
+      font-family: "Cascadia Code", Consolas, monospace;
+    }
+
+    code {
+      padding: 2px 5px;
+      background: var(--code);
+      border-radius: 5px;
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: 16px;
+      background: #172033;
+      color: #e9f0ff;
+      border-radius: 10px;
+      line-height: 1.5;
+    }
+
+    .callout {
+      margin: 16px 0;
+      padding: 14px 16px;
+      border-left: 4px solid var(--primary);
+      background: var(--primary-soft);
+      border-radius: 8px;
+    }
+
+    .callout.warning {
+      border-left-color: var(--warning);
+      background: var(--warning-soft);
+    }
+
+    .callout.danger {
+      border-left-color: var(--danger);
+      background: var(--danger-soft);
+    }
+
+    .callout.success {
+      border-left-color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .easy { color: #176b45; background: #dff5e9; }
+    .medium { color: #815800; background: #fff1bd; }
+    .hard { color: #9a3412; background: #ffead5; }
+    .very-hard { color: #9b1c1c; background: #ffe1e1; }
+
+    .phase {
+      margin: 18px 0;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .phase h3 { margin-top: 0; }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .meta span {
+      padding: 7px 11px;
+      color: #dce8ff;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+    }
+
+    footer {
+      padding: 0 0 40px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      section, nav { padding: 20px; }
+      .table-wrap { overflow-x: auto; }
+      th, td { min-width: 130px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <h1>Booking Service Implementation Plan</h1>
+      <p>Kế hoạch triển khai Booking Service theo thứ tự từ đơn giản đến phức tạp, được xây dựng từ tài liệu thiết kế kỹ thuật hiện có và trạng thái thực tế của source code.</p>
+      <div class="meta">
+        <span>Java 21</span>
+        <span>Spring Boot 4</span>
+        <span>DDD vừa đủ</span>
+        <span>Microservices</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <nav aria-label="Mục lục">
+      <h2>Mục lục</h2>
+      <ul>
+        <li><a href="#current-state">1. Hiện trạng</a></li>
+        <li><a href="#priority">2. Danh sách ưu tiên</a></li>
+        <li><a href="#implementation">3. Kế hoạch code</a></li>
+        <li><a href="#gaps">4. Khoảng trống nghiệp vụ</a></li>
+        <li><a href="#milestones">5. Milestone demo</a></li>
+        <li><a href="#definition-of-done">6. Definition of Done</a></li>
+      </ul>
+    </nav>
+
+    <section id="current-state">
+      <h2>1. Hiện trạng dự án</h2>
+
+      <div class="callout success">
+        <strong>Baseline:</strong> Maven reactor hiện build thành công. Tuy nhiên Booking Service chưa có test và mới chỉ là skeleton.
+      </div>
+
+      <ul>
+        <li>Đã có Spring Boot bootstrap class, POM và cấu hình ứng dụng.</li>
+        <li>Chưa có domain model, entity, repository, controller, migration hoặc test.</li>
+        <li><code>spring.application.name</code> đang là <code>payment-service</code>, cần đổi thành <code>booking-service</code>.</li>
+        <li>POM dùng PostgreSQL driver nhưng Hibernate lại cấu hình SQL Server dialect.</li>
+        <li>Datasource URL và driver còn trống; thông tin đăng nhập đang hard-code.</li>
+        <li>Có cấu hình OpenFeign nhưng chưa có dependency OpenFeign.</li>
+        <li><code>ddl-auto: update</code> chưa phù hợp để kiểm soát schema ổn định.</li>
+        <li>Chưa có cơ chế lấy current <code>userId</code> cho endpoint <code>/bookings/me</code>.</li>
+      </ul>
+
+      <div class="callout warning">
+        <strong>Đề xuất nền tảng:</strong> tiếp tục với SQL Server để phù hợp cấu hình hiện tại; dùng Flyway quản lý schema; dùng <code>RestClient</code> cho HTTP synchronous nếu nhóm chưa có chuẩn OpenFeign chung.
+      </div>
+    </section>
+
+    <section id="priority">
+      <h2>2. Công việc từ đơn giản đến phức tạp</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Thứ tự</th>
+              <th>Công việc</th>
+              <th>Độ khó</th>
+              <th>Kết quả chính</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Sửa cấu hình và dependency</td><td><span class="badge easy">Dễ</span></td><td>Service có cấu hình DB/profile đúng</td></tr>
+            <tr><td>2</td><td>Tạo enum, value object và exception</td><td><span class="badge easy">Dễ</span></td><td>Domain primitives và validation</td></tr>
+            <tr><td>3</td><td>Xây dựng Booking domain</td><td><span class="badge medium">Dễ–TB</span></td><td>State transition và invariant</td></tr>
+            <tr><td>4</td><td>Tạo schema, JPA entity, repository</td><td><span class="badge medium">Trung bình</span></td><td>Lưu booking, passenger, ticket và addon</td></tr>
+            <tr><td>5</td><td>Global error handling và DTO</td><td><span class="badge medium">Trung bình</span></td><td>API validation và lỗi thống nhất</td></tr>
+            <tr><td>6</td><td>Các API truy vấn booking</td><td><span class="badge medium">Trung bình</span></td><td>Detail, reference và history</td></tr>
+            <tr><td>7</td><td>Create Booking và Flight integration</td><td><span class="badge hard">TB–Khó</span></td><td>Validate flight/fare, snapshot giá</td></tr>
+            <tr><td>8</td><td>Add Passenger và issue Ticket</td><td><span class="badge hard">Khó</span></td><td>Transaction và chống vượt số vé</td></tr>
+            <tr><td>9</td><td>Payment flow</td><td><span class="badge hard">Khó</span></td><td>Khởi tạo payment, callback idempotent</td></tr>
+            <tr><td>10</td><td>Expiration và cancellation</td><td><span class="badge hard">Khó</span></td><td>Scheduler, refund/release policy</td></tr>
+            <tr><td>11</td><td>Add-on</td><td><span class="badge medium">Trung bình</span></td><td>CRUD gắn với passenger</td></tr>
+            <tr><td>12</td><td>Assign/change/remove seat</td><td><span class="badge very-hard">Rất khó</span></td><td>Đồng bộ DB với Flying Search</td></tr>
+            <tr><td>13</td><td>Security, concurrency, observability</td><td><span class="badge very-hard">Rất khó</span></td><td>Ownership, race condition và trace log</td></tr>
+            <tr><td>14</td><td>Integration/E2E tests</td><td><span class="badge very-hard">Rất khó</span></td><td>Xác nhận toàn bộ business flow</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="implementation">
+      <h2>3. Kế hoạch code chi tiết</h2>
+
+      <div class="phase">
+        <h3>Giai đoạn 0 — Chốt contract và nền tảng</h3>
+        <ul>
+          <li>Thay PostgreSQL driver bằng Microsoft SQL Server JDBC.</li>
+          <li>Đưa URL, username và password sang biến môi trường.</li>
+          <li>Sửa tên ứng dụng thành <code>booking-service</code>.</li>
+          <li>Thêm Flyway; chuyển Hibernate sang <code>ddl-auto: validate</code>.</li>
+          <li>Giữ base package <code>com.group3</code>, đặt code trong <code>com.group3.booking</code>.</li>
+          <li>Chốt contract với Flying Search, Payment và API Gateway.</li>
+        </ul>
+        <p><strong>Đầu ra:</strong> ứng dụng khởi động được với database, migration chạy thành công và cấu hình dev/test tách biệt.</p>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 1 — Domain thuần và unit test</h3>
+        <p>Tạo các enum:</p>
+        <ul>
+          <li><code>BookingStatus</code>, <code>TicketStatus</code>, <code>FareClass</code></li>
+          <li><code>AddonType</code>, <code>AddonStatus</code></li>
+        </ul>
+        <p>Tạo các value object:</p>
+        <ul>
+          <li><code>BookingReference</code>, <code>TicketNumber</code></li>
+          <li><code>TicketQuantity</code>, <code>Money</code>, <code>ContactInfo</code></li>
+        </ul>
+        <p>Tạo aggregate/entity và hành vi:</p>
+        <pre>Booking.create(...)
+Booking.confirmPayment()
+Booking.cancel(...)
+Booking.expire(...)
+Booking.addPassenger(...)
+Booking.remainingPassengerSlots()
+
+Ticket.issue(...)
+Ticket.assignSeat(...)
+Ticket.removeSeat()
+Ticket.cancel()</pre>
+        <p>Unit test phải bao phủ đầy đủ BR-01 đến BR-14 trong tài liệu thiết kế.</p>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 2 — Database và persistence</h3>
+        <ul>
+          <li>Tạo migration cho <code>bookings</code>, <code>booking_passengers</code>, <code>tickets</code>, <code>booking_addons</code>.</li>
+          <li>Thêm foreign key nội bộ service và các index được đề xuất.</li>
+          <li>Thêm unique constraint cho <code>booking_ref</code>, <code>ticket_number</code> và <code>tickets.booking_passenger_id</code>.</li>
+          <li>Ánh xạ UUID thành <code>UNIQUEIDENTIFIER</code>, thời gian thành <code>DATETIMEOFFSET</code>.</li>
+          <li>Chuẩn hóa tên timestamp thành <code>created_at</code> và <code>updated_at</code>.</li>
+          <li>Tạo JPA entities, Spring Data repositories, persistence adapters và mapper.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 3 — API nền tảng</h3>
+        <ul>
+          <li>Tạo request/response DTO và Jakarta Validation.</li>
+          <li>Tạo <code>GlobalExceptionHandler</code> và error response chuẩn.</li>
+          <li>Tạo generator cho booking reference và ticket number.</li>
+          <li>Cấu hình OpenAPI/Swagger.</li>
+          <li>Kiểm tra ownership: booking phải thuộc current user.</li>
+        </ul>
+        <pre>GET /api/v1/bookings/{bookingId}
+GET /api/v1/bookings/ref/{bookingRef}
+GET /api/v1/bookings/me
+GET /api/v1/bookings/{bookingId}/passengers
+GET /api/v1/tickets/{ticketId}</pre>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 4 — Create Booking</h3>
+        <pre>POST /api/v1/bookings</pre>
+        <ol>
+          <li>Lấy <code>userId</code> từ security context hoặc header nội bộ đáng tin cậy.</li>
+          <li>Gọi <code>FlightSearchPort</code> để kiểm tra flight.</li>
+          <li>Kiểm tra fare class và availability.</li>
+          <li>Lấy giá từ Flying Search, backend tự tính tổng tiền.</li>
+          <li>Tạo booking trạng thái <code>PENDING</code> và thời điểm hết hạn.</li>
+          <li>Lưu snapshot giá; không truy vấn lại giá khi xem lịch sử.</li>
+        </ol>
+        <p>External call nên chạy ngoài DB transaction. Có thể tạo adapter giả cho profile <code>local</code> nếu Flying Search chưa sẵn sàng.</p>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 5 — Passenger và Ticket trong một transaction</h3>
+        <pre>POST /api/v1/bookings/{bookingId}/passengers
+PUT  /api/v1/bookings/{bookingId}/passengers/{passengerId}</pre>
+        <pre>load booking with lock
+→ kiểm tra CONFIRMED
+→ kiểm tra số passenger
+→ tạo passenger
+→ sinh ticket number
+→ tạo ticket
+→ commit</pre>
+        <p>Dùng optimistic locking với <code>@Version</code> hoặc pessimistic lock để ngăn hai request đồng thời vượt quá <code>ticket_quantity</code>.</p>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 6 — Payment</h3>
+        <pre>POST /api/v1/bookings/{bookingId}/payment
+POST /internal/v1/bookings/{bookingId}/payment-result</pre>
+        <ul>
+          <li>Xác thực callback từ Payment Service.</li>
+          <li>Cho phép callback <code>SUCCESS</code> lặp lại mà không tạo side effect mới.</li>
+          <li>Không cho phép <code>CANCELLED → CONFIRMED</code>.</li>
+          <li>Kiểm tra amount và currency trong callback.</li>
+          <li>Không giữ DB transaction trong lúc gọi Payment Service.</li>
+          <li>Bổ sung <code>payment_id</code> hoặc bảng liên kết payment để theo dõi giao dịch.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 7 — Expiration và cancellation</h3>
+        <pre>find PENDING bookings where expires_at &lt;= now
+→ cancel theo batch</pre>
+        <ul>
+          <li>Dùng conditional update hoặc locking để nhiều instance không xử lý trùng.</li>
+          <li>MVP: cho phép cancel trực tiếp khi <code>PENDING</code>.</li>
+          <li>Tạm khóa cancel <code>CONFIRMED</code> cho đến khi có refund policy.</li>
+          <li>Expiration chỉ tác động đến booking <code>PENDING</code>.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 8 — Add-on</h3>
+        <pre>POST   /api/v1/passengers/{passengerId}/addons
+GET    /api/v1/passengers/{passengerId}/addons
+DELETE /api/v1/passengers/{passengerId}/addons/{addonId}</pre>
+        <ul>
+          <li>Add-on chỉ được tạo cho passenger tồn tại.</li>
+          <li>Giá lấy từ catalog/backend, không nhận giá từ client.</li>
+          <li>Nếu chưa có payment riêng, dùng trạng thái đơn giản <code>ACTIVE/CANCELLED</code>.</li>
+        </ul>
+      </div>
+
+      <div class="phase">
+        <h3>Giai đoạn 9 — Seat integration</h3>
+        <pre>PUT    /api/v1/tickets/{ticketId}/seat
+DELETE /api/v1/tickets/{ticketId}/seat</pre>
+        <ol>
+          <li>Tìm ticket và đi qua passenger/booking để lấy <code>flightId</code>.</li>
+          <li>Xác thực ticket có trạng thái <code>ISSUED</code>.</li>
+          <li>Gọi Flying Search để validate và assign seat atomically.</li>
+          <li>Cập nhật ticket trong Booking Service.</li>
+          <li>Nếu cập nhật DB thất bại sau external assignment, gọi release để compensation.</li>
+        </ol>
+        <div class="callout warning">
+          Khi đổi ghế, nên có một endpoint atomic <code>change-seat</code> ở Flying Search. Hai thao tác release rồi assign riêng biệt có thể làm người dùng mất ghế cũ mà không nhận được ghế mới.
+        </div>
+      </div>
+    </section>
+
+    <section id="gaps">
+      <h2>4. Khoảng trống nghiệp vụ cần chốt</h2>
+      <div class="callout danger">
+        <strong>Rủi ro overbooking:</strong> tài liệu mới yêu cầu kiểm tra availability, chưa yêu cầu giữ inventory. Hai booking đồng thời có thể cùng thấy còn vé và đều được tạo.
+      </div>
+
+      <p>Giải pháp tốt nhất là Flying Search cung cấp:</p>
+      <ul>
+        <li><code>hold inventory</code> khi tạo booking.</li>
+        <li><code>confirm hold</code> khi thanh toán thành công.</li>
+        <li><code>release hold</code> khi booking hết hạn hoặc bị hủy.</li>
+      </ul>
+
+      <p>Các quyết định còn lại:</p>
+      <ul>
+        <li>Thời gian hết hạn booking, đề xuất mặc định 15 phút.</li>
+        <li>Số ticket tối đa trong một booking.</li>
+        <li>Chính sách cancel booking đã thanh toán.</li>
+        <li>Nguồn giá add-on.</li>
+        <li>Format booking reference và ticket number.</li>
+        <li>Cách API Gateway truyền current user.</li>
+        <li>Cách xác thực request nội bộ và payment callback.</li>
+        <li>Có giữ inventory theo quantity hay chỉ validate cho demo.</li>
+      </ul>
+    </section>
+
+    <section id="milestones">
+      <h2>5. Milestone có thể demo</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Milestone</th><th>Phạm vi</th><th>Tiêu chí demo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>M1 — Domain</td><td>Domain rules và unit test</td><td>BR-01 đến BR-14 chạy xanh</td></tr>
+            <tr><td>M2 — Persistence</td><td>Migration và repository</td><td>Lưu/đọc được toàn bộ aggregate</td></tr>
+            <tr><td>M3 — Booking MVP</td><td>Create và query booking</td><td>Tạo booking PENDING với snapshot giá</td></tr>
+            <tr><td>M4 — Paid Booking</td><td>Payment callback</td><td>Booking chuyển CONFIRMED idempotently</td></tr>
+            <tr><td>M5 — Passenger/Ticket</td><td>Passenger và ticket</td><td>Mỗi passenger nhận đúng một ticket</td></tr>
+            <tr><td>M6 — Operations</td><td>Expiration, cancel và addon</td><td>Lifecycle booking hoạt động ổn định</td></tr>
+            <tr><td>M7 — Seat</td><td>Assign/change/remove seat</td><td>Có compensation khi lỗi</td></tr>
+            <tr><td>M8 — Quality</td><td>Security, test và observability</td><td>E2E flow và log truy vết đầy đủ</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p><strong>Ước tính:</strong> khoảng 10–15 ngày công nếu contract của Flying Search và Payment đã sẵn sàng. Nên bắt đầu từ Giai đoạn 0–2 vì các phần này tạo nền ổn định và không phụ thuộc service ngoài.</p>
+    </section>
+
+    <section id="definition-of-done">
+      <h2>6. Definition of Done cho mỗi use case</h2>
+      <ul>
+        <li>Business rule được đặt trong domain/application layer, không nằm rải rác ở controller.</li>
+        <li>Request có bean validation và domain validation.</li>
+        <li>Error code và HTTP status đúng tài liệu.</li>
+        <li>Transaction boundary rõ ràng; không giữ transaction khi gọi service ngoài.</li>
+        <li>Có unit test cho happy path và state transition sai.</li>
+        <li>Có integration test cho repository/controller và external adapter.</li>
+        <li>Kiểm tra ownership theo current user.</li>
+        <li>Log có <code>bookingId</code>, <code>bookingRef</code> và correlation ID.</li>
+        <li>OpenAPI được cập nhật cùng endpoint.</li>
+        <li><code>mvn test</code> chạy xanh từ root project.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    Booking Service Implementation Plan — Airline Booking System
+  </footer>
+</body>
+</html>
