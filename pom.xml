@@ -12,6 +12,7 @@
         <module>shared/common</module>
         <module>services/payment-service</module>
         <module>services/booking-service</module>
+        <module>services/flight-search-service</module>
     </modules>
 
     <properties>
