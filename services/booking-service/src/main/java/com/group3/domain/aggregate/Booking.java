@@ -2,6 +2,8 @@ package com.group3.domain.aggregate;
 
 import com.group3.domain.exception.InvalidBookingStateException;
 import com.group3.domain.exception.InvalidDomainValueException;
+import com.group3.domain.exception.PassengerAlreadyExistsException;
+import com.group3.domain.exception.PassengerLimitExceededException;
 import com.group3.domain.vo.BookingId;
 import com.group3.domain.vo.BookingReference;
 import com.group3.domain.vo.ContactInfo;
@@ -11,7 +13,10 @@ import com.group3.domain.vo.Money;
 import com.group3.domain.vo.TicketQuantity;
 import com.group3.domain.vo.UserId;
 
+import java.awt.print.Pageable;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Booking {
 
@@ -26,6 +31,8 @@ public class Booking {
     private final ContactInfo contactInfo;
     private final Instant createdAt;
     private final Instant expiresAt;
+
+    private final List<BookingPassenger> passengers;
 
     private BookingStatus status;
 
@@ -55,6 +62,7 @@ public class Booking {
         this.status = status;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
+        this.passengers = new ArrayList<>();
     }
 
     public static Booking create(
@@ -216,6 +224,49 @@ public class Booking {
         }
     }
 
+    public boolean canAddPassenger() {
+        return status == BookingStatus.CONFIRMED
+                && passengers.size() < ticketQuantity.value();
+    }
+
+    public int remainingPassengerSlots() {
+        int remaining =
+                ticketQuantity.value() - passengers.size();
+        return Math.max(remaining, 0);
+    }
+
+    public void addPassenger(BookingPassenger passenger){
+        if (passenger == null){
+            throw new InvalidDomainValueException(
+                    "Passenger must not be null"
+            );
+        }
+
+        if(status != BookingStatus.CONFIRMED){
+            throw new InvalidBookingStateException(
+                    "Only confirmed booking can be add passengers"
+            );
+        }
+
+        boolean passengerAlreadyExists = passengers.stream()
+                .anyMatch(existing -> existing.getId().equals(passenger.getId())
+                );
+
+        if(passengerAlreadyExists){
+            throw new PassengerAlreadyExistsException(
+                    "Passenger already exists in this booking"
+            );
+        }
+
+        if(passengers.size() >= ticketQuantity.value()){
+            throw new PassengerLimitExceededException(
+                    "Passenger count cannot exceed ticket quantity"
+            );
+        }
+
+        passengers.add(passenger);
+    }
+
     public BookingId getId() {
         return id;
     }
@@ -262,5 +313,9 @@ public class Booking {
 
     public Instant getExpiresAt() {
         return expiresAt;
+    }
+
+    public List<BookingPassenger> getPassengers(){
+        return List.copyOf(passengers);
     }
 }
