@@ -9,7 +9,7 @@ import com.group3.domain.vo.PassportNumber;
 
 import java.time.LocalDate;
 
-public final class BookingPassenger {
+public class BookingPassenger {
 
     private final BookingPassengerId id;
     private final PassengerProfileId passengerProfileId;
