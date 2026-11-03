@@ -6,10 +6,10 @@ spring:
     name: payment-service
 
   datasource:
-    url:
-    username: sa
-    password: 123
-    driver-class-name:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: ApplicationHikariPool
       maximum-pool-size: 10
@@ -20,20 +20,31 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO}
+    show-sql: ${JPA_SHOW_SQL}
 
     properties:
       hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: true 
+        jdbc:
+          time_zone: UTC
     open-in-view: false
 
   cloud:
     openfeign:
       client:
         config:
-          default:
-            connect-timeout: 2000
-            read-timeout: 3000
+            default:
+                connect-timeout: 2000
+                read-timeout: 3000
 
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
