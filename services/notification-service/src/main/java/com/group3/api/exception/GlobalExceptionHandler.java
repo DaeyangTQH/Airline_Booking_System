@@ -1,5 +1,7 @@
 package com.group3.api.exception;
 
+import com.group3.response.ErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.MailAuthenticationException;
@@ -7,48 +9,64 @@ import org.springframework.mail.MailSendException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 1. Bắt lỗi xác thực email (Sai mật khẩu ứng dụng, tài khoản bị khóa...)
+    // 1. Bắt lỗi xác thực Email (Sai App Password...)
     @ExceptionHandler(MailAuthenticationException.class)
-    public ResponseEntity<?> handleMailAuthenticationException(MailAuthenticationException ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        body.put("error", "Lỗi xác thực Email Server");
-        body.put("message", "Không thể đăng nhập vào Gmail. Vui lòng kiểm tra lại Mật khẩu ứng dụng (App Password) trong file application.properties.");
-        body.put("details", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleMailAuthException(
+            MailAuthenticationException ex, HttpServletRequest request) {
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        ErrorResponse error = new ErrorResponse(
+                "MAIL_AUTH_FAILED",
+                "Không thể đăng nhập vào Gmail. Vui lòng kiểm tra lại Mật khẩu ứng dụng (App Password).",
+                Instant.now(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
-    // 2. Bắt lỗi gửi email chung chung (Mất mạng, sai địa chỉ người nhận...)
+    // 2. Bắt lỗi gửi Email (Sai địa chỉ, mất mạng...)
     @ExceptionHandler(MailSendException.class)
-    public ResponseEntity<?> handleMailSendException(MailSendException ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        body.put("error", "Lỗi gửi Email");
-        body.put("message", "Hệ thống không thể gửi email đến người nhận. Vui lòng kiểm tra lại địa chỉ email.");
-        body.put("details", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleMailSendException(
+            MailSendException ex, HttpServletRequest request) {
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        ErrorResponse error = new ErrorResponse(
+                "MAIL_SEND_FAILED",
+                "Hệ thống không thể gửi email đến người nhận. Vui lòng kiểm tra lại địa chỉ email.",
+                Instant.now(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
-    // 3. Bắt lỗi dữ liệu đầu vào không hợp lệ (Email sai định dạng, giờ bay sai...)
+    // 3. Bắt lỗi dữ liệu đầu vào (Email sai định dạng, thời gian sai...)
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<?> handleBadRequestException(IllegalArgumentException ex) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now().toString());
-        body.put("status", HttpStatus.BAD_REQUEST.value());
-        body.put("error", "Dữ liệu không hợp lệ");
-        body.put("message", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleBadRequest(
+            IllegalArgumentException ex, HttpServletRequest request) {
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        ErrorResponse error = new ErrorResponse(
+                "BAD_REQUEST",
+                ex.getMessage(),
+                Instant.now(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    // 4. Bắt tất cả các lỗi hệ thống khác (Fallback)
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGlobalException(
+            Exception ex, HttpServletRequest request) {
+
+        ErrorResponse error = new ErrorResponse(
+                "INTERNAL_SERVER_ERROR",
+                "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+                Instant.now(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }
