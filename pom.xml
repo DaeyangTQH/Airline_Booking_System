@@ -16,6 +16,7 @@
         <module>services/user-service</module>
         <module>infra/api-gateway</module>
         <module>infra/eureka-server</module>
+        <module>services/flight-search-service</module>
     </modules>
 
     <properties>
