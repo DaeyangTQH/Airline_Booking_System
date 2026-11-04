@@ -13,7 +13,6 @@ import com.group3.domain.vo.Money;
 import com.group3.domain.vo.TicketQuantity;
 import com.group3.domain.vo.UserId;
 
-import java.awt.print.Pageable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,7 +47,8 @@ public class Booking {
             ContactInfo contactInfo,
             BookingStatus status,
             Instant createdAt,
-            Instant expiresAt
+            Instant expiresAt,
+            List<BookingPassenger> passengers
     ){
         this.id = id;
         this.reference = reference;
@@ -62,7 +62,7 @@ public class Booking {
         this.status = status;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
-        this.passengers = new ArrayList<>();
+        this.passengers = new ArrayList<>(passengers);
     }
 
     public static Booking create(
@@ -110,7 +110,92 @@ public class Booking {
                 contactInfo,
                 BookingStatus.PENDING,
                 createdAt,
+                expiresAt,
+                List.of()
+        );
+    }
+
+    public static Booking restore(
+            BookingId id,
+            BookingReference reference,
+            UserId userId,
+            FlightId flightId,
+            FareClass fareClass,
+            TicketQuantity ticketQuantity,
+            Money unitPrice,
+            Money totalAmount,
+            ContactInfo contactInfo,
+            BookingStatus status,
+            Instant createdAt,
+            Instant expiresAt,
+            List<BookingPassenger> passengers
+    ) {
+        validateRequiredFields(
+                id,
+                reference,
+                userId,
+                flightId,
+                fareClass,
+                ticketQuantity,
+                unitPrice,
+                contactInfo,
+                createdAt,
                 expiresAt
+        );
+
+        if (totalAmount == null) {
+            throw new InvalidDomainValueException(
+                    "Total amount must not be null"
+            );
+        }
+
+        if (status == null) {
+            throw new InvalidDomainValueException(
+                    "Booking status must not be null"
+            );
+        }
+
+        if (passengers == null) {
+            throw new InvalidDomainValueException(
+                    "Passenger list must not be null"
+            );
+        }
+
+        if (!expiresAt.isAfter(createdAt)) {
+            throw new InvalidDomainValueException(
+                    "Booking expiration time must be after creation time"
+            );
+        }
+
+        Money expectedTotal =
+                unitPrice.multiply(ticketQuantity);
+
+        if (!expectedTotal.equals(totalAmount)) {
+            throw new InvalidDomainValueException(
+                    "Stored total amount does not match unit price and ticket quantity"
+            );
+        }
+
+        if (passengers.size() > ticketQuantity.value()) {
+            throw new PassengerLimitExceededException(
+                    "Stored passenger count exceeds ticket quantity"
+            );
+        }
+
+        return new Booking(
+                id,
+                reference,
+                userId,
+                flightId,
+                fareClass,
+                ticketQuantity,
+                unitPrice,
+                totalAmount,
+                contactInfo,
+                status,
+                createdAt,
+                expiresAt,
+                passengers
         );
     }
 
@@ -275,7 +360,7 @@ public class Booking {
         return reference;
     }
 
-    public UserId getUserId() {
+    public UserId getUserId()  {
         return userId;
     }
 
