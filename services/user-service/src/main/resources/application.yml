@@ -7,6 +7,10 @@ server:
   port: ${USER_SERVICE_PORT:8081}
 
 spring:
+  config:
+    import:
+      - optional:file:./infra/.env[.properties]
+      - optional:file:../../infra/.env[.properties]
   application:
     name: user-service
 
@@ -36,6 +40,17 @@ app:
     issuer: airline-booking-user-service
     secret: ${USER_JWT_SECRET}
     expiration-seconds: 3600
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
 
 # LOGGING
 logging:
