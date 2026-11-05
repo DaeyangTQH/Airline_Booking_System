@@ -1,9 +1,12 @@
 package com.group3.application.port.in;
 
-import com.group3.domain.aggregate.Booking;
-import com.group3.domain.vo.BookingId;
+import com.group3.application.query.BookingDetailView;
+
+import java.util.UUID;
 
 public interface GetBookingUseCase {
 
-    Booking getById(BookingId bookingId);
+    BookingDetailView getById(UUID bookingId);
+
+    BookingDetailView getByReference(String bookingReference);
 }

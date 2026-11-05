@@ -16,4 +16,6 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
     boolean existsByBookingReference(String bookingReference);
 
     List<BookingEntity> findAllByUserId(UUID userId);
+
+    List<BookingEntity> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
 }
