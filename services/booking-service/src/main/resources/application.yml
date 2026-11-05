@@ -1,6 +1,10 @@
 server:
   port: ${BOOKING_SERVICE_PORT}
 spring:
+  config:
+    import:
+      - optional:file:./infra/.env[.properties]
+      - optional:file:../../infra/.env[.properties]
   application:
     name: booking-service
 

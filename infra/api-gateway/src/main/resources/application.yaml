@@ -1,9 +1,12 @@
-server:
-  port: 8080
-
 spring:
+  config:
+    import:
+      - optional:file:./infra/.env[.properties]
+      - optional:file:../.env[.properties]
+
   application:
     name: api-gateway
+
   cloud:
     gateway:
       server:
@@ -12,7 +15,6 @@ spring:
             locator:
               enabled: false
           routes:
-            # User Service (8081)
             - id: user-service-auth
               uri: lb://user-service
               predicates:
@@ -33,23 +35,23 @@ spring:
               predicates:
                 - Path=/api/admin/**
 
-            # Booking Service (8082)
             - id: booking-service
               uri: lb://booking-service
               predicates:
                 - Path=/api/v1/bookings/**,/api/v1/tickets/**
 
-            # Notification Service
             - id: notification-service
               uri: lb://notification-service
               predicates:
                 - Path=/api/v1/notifications/**,/api/v1/reminders/**
 
-            # Payment Service (8084) — public VNPay callback / payment APIs
             - id: payment-service
               uri: lb://payment-service
               predicates:
                 - Path=/api/v1/payments/**
+
+server:
+  port: 8080
 
 # JWT — cùng secret/issuer với user-service
 app:
@@ -60,7 +62,7 @@ app:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICE_URL:http://localhost:8761/eureka/}
     fetch-registry: true
     register-with-eureka: true
   instance:
