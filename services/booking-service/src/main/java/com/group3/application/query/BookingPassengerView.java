@@ -1,9 +1,10 @@
-package com.group3.api.dto;
+package com.group3.application.query;
+
 
 import java.time.LocalDate;
 import java.util.UUID;
 
-public record BookingPassengerResponse(
+public record BookingPassengerView(
         UUID id,
         UUID passengerProfileId,
         String fullName,
@@ -13,3 +14,4 @@ public record BookingPassengerResponse(
         String email
 ) {
 }
+

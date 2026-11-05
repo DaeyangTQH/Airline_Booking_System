@@ -1,17 +1,18 @@
 package com.group3.api.rest;
 
-import com.group3.api.dto.BookingResponse;
-import com.group3.api.mapper.BookingApiMapper;
 import com.group3.application.port.in.GetBookingUseCase;
-import com.group3.domain.aggregate.Booking;
-import com.group3.domain.vo.BookingId;
+import com.group3.application.port.in.GetMyBookingUseCase;
+import com.group3.application.query.BookingDetailView;
+import com.group3.application.query.BookingSumaryView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -19,16 +20,33 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BookingController {
 
-    private final GetBookingUseCase getBookingPort;
-    private final BookingApiMapper bookingApiMapper;
+    private final GetBookingUseCase getBookingUseCase;
+    private final GetMyBookingUseCase getMyBookingUseCase;
 
     @GetMapping("/{bookingId}")
-    public ResponseEntity<BookingResponse> getById(
+    public ResponseEntity<BookingDetailView> getById(
             @PathVariable UUID bookingId
             ){
+        return ResponseEntity.ok(
+                getBookingUseCase.getById(bookingId)
+        );
+    }
 
-        Booking booking = getBookingPort.getById(new BookingId(bookingId));
+    @GetMapping("/ref/{bookingReference}")
+    public ResponseEntity<BookingDetailView> getByReference(
+            @PathVariable String bookingReference
+    ){
+        return ResponseEntity.ok(
+                getBookingUseCase.getByReference(bookingReference)
+        );
+    }
 
-        return ResponseEntity.ok(bookingApiMapper.toResponse(booking));
+    @GetMapping("/me")
+    public ResponseEntity<List<BookingSumaryView>> getMyBookings(
+            @RequestHeader("X-User-Id") UUID userId
+    ){
+        return ResponseEntity.ok(
+                getMyBookingUseCase.getByUserId(userId)
+        );
     }
 }

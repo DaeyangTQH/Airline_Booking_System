@@ -1,26 +1,37 @@
 package com.group3.application.service;
 
 import com.group3.application.port.in.GetBookingUseCase;
-import com.group3.domain.aggregate.Booking;
+import com.group3.application.port.out.BookingQueryPort;
+import com.group3.application.query.BookingDetailView;
 import com.group3.domain.exception.BookingNotFoundException;
-import com.group3.domain.repository.BookingRepository;
-import com.group3.domain.vo.BookingId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class GetBookingService implements GetBookingUseCase {
 
-    private final BookingRepository bookingRepository;
+    private final BookingQueryPort bookingQueryPort;
 
     @Override
     @Transactional(readOnly = true)
-    public Booking getById(BookingId bookingId) {
-        return bookingRepository.findById(bookingId)
+    public BookingDetailView getById(UUID bookingId) {
+        return bookingQueryPort.findDetailById(bookingId)
                 .orElseThrow(() -> new BookingNotFoundException(
-                        "Booking not found with ID: " + bookingId.value()
+                        "Booking not found with ID: " + bookingId
+                ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BookingDetailView getByReference(String bookingReference) {
+
+        return bookingQueryPort.findDetailByReference(bookingReference)
+                .orElseThrow(() -> new BookingNotFoundException(
+                        "Booking not found with reference: " + bookingReference
                 ));
     }
 }

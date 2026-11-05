@@ -1,4 +1,4 @@
-package com.group3.api.dto;
+package com.group3.application.query;
 
 import com.group3.domain.aggregate.BookingStatus;
 import com.group3.domain.vo.CurrencyCode;
@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record BookingResponse(
+public record BookingDetailView(
         UUID id,
         String bookingReference,
         UUID userId,
@@ -24,6 +24,6 @@ public record BookingResponse(
         BookingStatus status,
         Instant createdAt,
         Instant expiresAt,
-        List<BookingPassengerResponse> passengers
+        List<BookingPassengerView> passengers
 ) {
 }
