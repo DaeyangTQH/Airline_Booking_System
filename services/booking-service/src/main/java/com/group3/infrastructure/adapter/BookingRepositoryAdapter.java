@@ -66,6 +66,14 @@ public class BookingRepositoryAdapter implements BookingRepository {
     }
 
     @Override
+    @Transactional
+    public Optional<Booking> findByIdForUpdate(BookingId id) {
+        return bookingJpaRepository
+                .findByIdForUpdate(id.value())
+                .map(this::loadAggregate);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public boolean existsByReference(BookingReference reference) {
         return bookingJpaRepository.existsByBookingReference(reference.value());

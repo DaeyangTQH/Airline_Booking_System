@@ -24,6 +24,14 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
 
+  cloud:
+    openfeign:
+      client:
+        config:
+          flight-search-service:
+            connectTimeout: 3000
+            readTimeout: 5000
+
 eureka:
   client:
     service-url:

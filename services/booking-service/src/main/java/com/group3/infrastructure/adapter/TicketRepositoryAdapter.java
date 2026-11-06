@@ -64,4 +64,9 @@ public class TicketRepositoryAdapter implements TicketRepository {
     public boolean existsByPassengerId(BookingPassengerId passengerId) {
         return ticketJpaRepository.existsByPassenger_Id(passengerId.value());
     }
+
+    @Override
+    public boolean existsByNumber(TicketNumber number) {
+        return ticketJpaRepository.existsByTicketNumber(number.value());
+    }
 }
