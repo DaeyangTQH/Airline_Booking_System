@@ -20,6 +20,12 @@ spring:
     username: ${USER_DB_USERNAME:postgres}
     password: ${USER_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    # RABBITMQ
+    rabbitmq:
+      host: localhost
+      port: 5672
+      username: guest
+      password: guest
 
   # SPRING DATA JPA / HIBERNATE
   jpa:

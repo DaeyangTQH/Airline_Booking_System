@@ -6,7 +6,7 @@ import com.group3.application.command.UpdateProfileCommand;
 import com.group3.application.port.in.UserProfileUseCase;
 import com.group3.application.port.out.PasswordHasherPort;
 import com.group3.application.port.out.UserRepositoryPort;
-
+import com.group3.application.port.out.UserEventPublisherPort;
 import com.group3.domain.aggregate.User;
 import com.group3.domain.vo.Email;
 
@@ -22,16 +22,21 @@ import java.util.UUID;
 @Service
 public class UserProfileService implements UserProfileUseCase {
 
+
     private final UserRepositoryPort userRepository;
     private final PasswordHasherPort passwordHasher;
+    private final UserEventPublisherPort eventPublisher;
 
     public UserProfileService(
             UserRepositoryPort userRepository,
-            PasswordHasherPort passwordHasher
+            PasswordHasherPort passwordHasher,
+            UserEventPublisherPort eventPublisher
     ) {
         this.userRepository = userRepository;
         this.passwordHasher = passwordHasher;
+        this.eventPublisher = eventPublisher;
     }
+
 
     // ==========================================
     // 1. GET CURRENT USER PROFILE
@@ -79,7 +84,13 @@ public class UserProfileService implements UserProfileUseCase {
         );
 
         try {
-            return userRepository.save(user);
+            User savedUser = userRepository.save(user);
+
+            eventPublisher.publishProfileUpdated(
+                    savedUser.getEmail().value()
+            );
+
+            return savedUser;
 
         } catch (DataIntegrityViolationException ex) {
             throw new CustomException(
