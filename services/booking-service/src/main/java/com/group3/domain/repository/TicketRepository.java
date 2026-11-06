@@ -18,4 +18,6 @@ public interface TicketRepository {
     Optional<Ticket> findByPassengerId(BookingPassengerId passengerId);
 
     boolean existsByPassengerId(BookingPassengerId passengerId);
+
+    boolean existsByNumber(TicketNumber number);
 }

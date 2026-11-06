@@ -1,7 +1,7 @@
 package com.group3.application.port.out;
 
 import com.group3.application.query.BookingDetailView;
-import com.group3.application.query.BookingSumaryView;
+import com.group3.application.query.BookingSummaryView;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,5 +13,5 @@ public interface BookingQueryPort {
 
     Optional<BookingDetailView> findDetailByReference(String bookingReference);
 
-    List<BookingSumaryView> findSumariesByUserId(UUID userId);
+    List<BookingSummaryView> findSummariesByUserId(UUID userId);
 }
