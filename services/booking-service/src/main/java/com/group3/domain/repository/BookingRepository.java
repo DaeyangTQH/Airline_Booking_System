@@ -18,5 +18,7 @@ public interface BookingRepository {
 
     List<Booking> findAllByUserId(UserId userId);
 
+    Optional<Booking> findByIdForUpdate(BookingId id);
+
     boolean existsByReference(BookingReference reference);
 }

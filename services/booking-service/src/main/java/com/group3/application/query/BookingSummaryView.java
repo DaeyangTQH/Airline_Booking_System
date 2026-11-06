@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-public record BookingSumaryView(
+public record BookingSummaryView(
         UUID id,
         String bookingReference,
         UUID flightId,

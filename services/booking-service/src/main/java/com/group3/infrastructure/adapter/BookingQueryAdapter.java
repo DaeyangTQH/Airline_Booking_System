@@ -3,7 +3,7 @@ package com.group3.infrastructure.adapter;
 import com.group3.application.query.BookingPassengerView;
 import com.group3.application.port.out.BookingQueryPort;
 import com.group3.application.query.BookingDetailView;
-import com.group3.application.query.BookingSumaryView;
+import com.group3.application.query.BookingSummaryView;
 import com.group3.infrastructure.persistence.BookingJpaRepository;
 import com.group3.infrastructure.persistence.BookingPassengerJpaRepository;
 import com.group3.infrastructure.persistence.entity.BookingEntity;
@@ -36,7 +36,7 @@ public class BookingQueryAdapter implements BookingQueryPort {
     }
 
     @Override
-    public List<BookingSumaryView> findSumariesByUserId(UUID userId) {
+    public List<BookingSummaryView> findSummariesByUserId(UUID userId) {
         return bookingJpaRepository
                 .findAllByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
@@ -85,10 +85,10 @@ public class BookingQueryAdapter implements BookingQueryPort {
         );
     }
 
-    private BookingSumaryView toSummaryView(
+    private BookingSummaryView toSummaryView(
             BookingEntity entity
     ) {
-        return new BookingSumaryView(
+        return new BookingSummaryView(
                 entity.getId(),
                 entity.getBookingReference(),
                 entity.getFlightId(),
