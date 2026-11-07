@@ -4,7 +4,7 @@
 # ==========================================
 
 server:
-  port: ${USER_SERVICE_PORT:8081}
+  port: ${USER_SERVICE_PORT:8083}
 
 spring:
   config:
@@ -16,16 +16,16 @@ spring:
 
   # POSTGRESQL DATABASE
   datasource:
-    url: ${USER_DB_URL:jdbc:postgresql://127.0.0.1:5433/user_db}
+    url: ${USER_DB_URL:jdbc:postgresql://127.0.0.1:5432/user_db}
     username: ${USER_DB_USERNAME:postgres}
     password: ${USER_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-    # RABBITMQ
-    rabbitmq:
-      host: localhost
-      port: 5672
-      username: guest
-      password: guest
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: ${RABBITMQ_PASSWORD:guest}
 
   # SPRING DATA JPA / HIBERNATE
   jpa:
