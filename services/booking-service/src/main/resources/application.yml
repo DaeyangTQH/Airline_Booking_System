@@ -32,6 +32,10 @@ spring:
             connectTimeout: 3000
             readTimeout: 5000
 
+          payment-service:
+            connectTimeout: 3000
+            readTimeout: 5000
+
 eureka:
   client:
     service-url:
@@ -42,3 +46,6 @@ eureka:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
+
+app:
+  internal-api-key: ${INTERNAL_API_KEY}

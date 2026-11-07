@@ -11,6 +11,7 @@ import com.group3.domain.vo.Money;
 import com.group3.domain.vo.PassengerName;
 import com.group3.domain.vo.PassengerProfileId;
 import com.group3.domain.vo.PassportNumber;
+import com.group3.domain.vo.PaymentId;
 import com.group3.domain.vo.TicketQuantity;
 import com.group3.domain.vo.UserId;
 import com.group3.infrastructure.persistence.entity.BookingEntity;
@@ -32,6 +33,9 @@ public class BookingPersistenceMapper {
         entity.setBookingReference(booking.getReference().value());
         entity.setUserId(booking.getUserId().value());
         entity.setFlightId(booking.getFlightId().value());
+        if(booking.getPaymentId() != null) {
+            entity.setPaymentId(booking.getPaymentId().value());
+        }
         entity.setFareClass(booking.getFareClass());
         entity.setTicketQuantity(booking.getTicketQuantity().value());
         entity.setUnitPrice(booking.getUnitPrice().amount());
@@ -97,6 +101,7 @@ public class BookingPersistenceMapper {
                 bookingEntity.getStatus(),
                 bookingEntity.getCreatedAt(),
                 bookingEntity.getExpiresAt(),
+                bookingEntity.getPaymentId() != null ? new PaymentId(bookingEntity.getPaymentId()) : null,
                 passengers
         );
     }

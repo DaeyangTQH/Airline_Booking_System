@@ -6,10 +6,10 @@ import java.util.UUID;
 
 public record AddPassengerResult(
         UUID passengerId,
-        TicketReSult ticket
+        TicketResult ticket
 ) {
 
-    public record TicketReSult(
+    public record TicketResult(
             UUID ticketId,
             String ticketNumber,
             UUID seatId,
