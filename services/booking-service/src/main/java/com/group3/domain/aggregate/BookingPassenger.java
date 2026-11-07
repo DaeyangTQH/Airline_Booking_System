@@ -54,6 +54,12 @@ public class BookingPassenger {
             );
         }
 
+        if (passportNumber == null) {
+            throw new InvalidDomainValueException(
+                    "Passenger passport number must not be null"
+            );
+        }
+
         if (dateOfBirth == null) {
             throw new InvalidDomainValueException(
                     "Passenger date of birth must not be null"

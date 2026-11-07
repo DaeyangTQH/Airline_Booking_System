@@ -66,6 +66,7 @@ public class TicketRepositoryAdapter implements TicketRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean existsByNumber(TicketNumber number) {
         return ticketJpaRepository.existsByTicketNumber(number.value());
     }

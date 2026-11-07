@@ -10,12 +10,14 @@ import com.group3.domain.vo.ContactInfo;
 import com.group3.domain.vo.FareClass;
 import com.group3.domain.vo.FlightId;
 import com.group3.domain.vo.Money;
+import com.group3.domain.vo.PaymentId;
 import com.group3.domain.vo.TicketQuantity;
 import com.group3.domain.vo.UserId;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+
 
 public class Booking {
 
@@ -34,6 +36,7 @@ public class Booking {
     private final List<BookingPassenger> passengers;
 
     private BookingStatus status;
+    private PaymentId paymentId;
 
     private Booking(
             BookingId id,
@@ -48,6 +51,7 @@ public class Booking {
             BookingStatus status,
             Instant createdAt,
             Instant expiresAt,
+            PaymentId paymentId,
             List<BookingPassenger> passengers
     ){
         this.id = id;
@@ -62,6 +66,7 @@ public class Booking {
         this.status = status;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
+        this.paymentId = paymentId;
         this.passengers = new ArrayList<>(passengers);
     }
 
@@ -111,6 +116,7 @@ public class Booking {
                 BookingStatus.PENDING,
                 createdAt,
                 expiresAt,
+                null,
                 List.of()
         );
     }
@@ -128,6 +134,7 @@ public class Booking {
             BookingStatus status,
             Instant createdAt,
             Instant expiresAt,
+            PaymentId paymentId,
             List<BookingPassenger> passengers
     ) {
         validateRequiredFields(
@@ -195,6 +202,7 @@ public class Booking {
                 status,
                 createdAt,
                 expiresAt,
+                paymentId,
                 passengers
         );
     }
@@ -272,14 +280,94 @@ public class Booking {
         }
     }
 
-    public void confirmPayment(){
+    public void attachPayment(PaymentId paymentId){
+        if(paymentId == null) {
+            throw new InvalidDomainValueException(
+                    "Payment ID must not be null"
+            );
+        }
+
+        if (this.paymentId != null) {
+            if (this.paymentId.equals(paymentId)) {
+                return;
+            }
+
+            throw new InvalidBookingStateException(
+                    "Booking is already linked to another payment"
+            );
+        }
+
+        if(status != BookingStatus.PENDING){
+            throw new InvalidBookingStateException(
+                    "Payment can only be attached to a pending booking"
+            );
+        }
+
+        this.paymentId = paymentId;
+    }
+
+    public void ensureCanInitiatePayment(Instant now) {
+
+        if(now == null){
+            throw new InvalidDomainValueException(
+                    "Current time must not be null"
+            );
+        }
+
+        if(status != BookingStatus.PENDING){
+            throw new InvalidBookingStateException(
+                    "Cannot initiate payment for an expired booking"
+            );
+        }
+
+        if(!now.isBefore(expiresAt)){
+            throw new InvalidBookingStateException(
+                    "Cannot initiate payment for an expired booking"
+            );
+        }
+    }
+
+    public void confirmPayment(
+            PaymentId paymentId,
+            Money paidAmount
+    ){
+        if(paymentId == null) {
+            throw new InvalidDomainValueException(
+                    "Payment ID must not be null"
+            );
+        }
+
+        if(paidAmount == null) {
+            throw new InvalidDomainValueException(
+                    "Paid amount must not be null"
+            );
+        }
+
+        if(this.paymentId == null) {
+            throw new InvalidBookingStateException(
+                    "Booking is not linked to a payment"
+            );
+        }
+
+        if(!this.paymentId.equals(paymentId)) {
+            throw new InvalidBookingStateException(
+                    "Payment does not belong to this booking"
+            );
+        }
+
+        if (!totalAmount.equals(paidAmount)) {
+            throw new InvalidBookingStateException(
+                    "Payment amount or currency does not match booking total"
+            );
+        }
+
         if (status == BookingStatus.CANCELLED) {
             throw new InvalidBookingStateException(
                     "Cannot confirm payment for a cancelled booking"
             );
         }
 
-        if(status == BookingStatus.CONFIRMED){
+        if (status == BookingStatus.CONFIRMED) {
             return;
         }
 
@@ -333,11 +421,16 @@ public class Booking {
             );
         }
 
-        boolean passengerAlreadyExists = passengers.stream()
-                .anyMatch(existing -> existing.getId().equals(passenger.getId())
-                );
+        boolean passengerAlreadyExists =
+                passengers.stream()
+                        .anyMatch(existing ->
+                                isSamePassenger(
+                                        existing,
+                                        passenger
+                                )
+                        );
 
-        if(passengerAlreadyExists){
+        if (passengerAlreadyExists) {
             throw new PassengerAlreadyExistsException(
                     "Passenger already exists in this booking"
             );
@@ -350,6 +443,29 @@ public class Booking {
         }
 
         passengers.add(passenger);
+    }
+
+    private boolean isSamePassenger(
+            BookingPassenger existing,
+            BookingPassenger candidate
+    ){
+
+        if(existing.getId()
+                .equals(candidate.getId())){
+            return true;
+        }
+
+        if(existing.getPassportNumber()
+                .equals(candidate.getPassportNumber())){
+            return true;
+        }
+
+        return existing.getPassengerProfileId() != null
+                && candidate.getPassengerProfileId() != null
+                && existing.getPassengerProfileId()
+                .equals(
+                        candidate.getPassengerProfileId()
+                );
     }
 
     public BookingId getId() {
@@ -398,6 +514,10 @@ public class Booking {
 
     public Instant getExpiresAt() {
         return expiresAt;
+    }
+
+    public PaymentId getPaymentId() {
+        return paymentId;
     }
 
     public List<BookingPassenger> getPassengers(){

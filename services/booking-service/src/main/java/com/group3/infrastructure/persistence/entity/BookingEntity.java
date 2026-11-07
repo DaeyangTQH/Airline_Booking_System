@@ -27,6 +27,10 @@ import java.util.UUID;
                 @UniqueConstraint(
                         name = "uk_bookings_booking_ref",
                         columnNames = "booking_ref"
+                ),
+                @UniqueConstraint(
+                        name = "uk_bookings_payment_id",
+                        columnNames = "payment_id"
                 )
         },
         indexes = {
@@ -64,6 +68,9 @@ public class BookingEntity extends BaseEntity {
 
     @Column(name = "flight_id", nullable = false)
     private UUID flightId;
+
+    @Column(name = "payment_id")
+    private UUID paymentId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "fare_class", nullable = false)
