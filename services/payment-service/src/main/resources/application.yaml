@@ -40,6 +40,9 @@ spring:
           default:
             connect-timeout: 2000
             read-timeout: 3000
+          booking-service:
+            connect-timeout: 3000
+            read-timeout: 5000
 
 server:
   port: ${PAYMENT_SERVICE_PORT:8084}
@@ -57,10 +60,14 @@ eureka:
 
 
 app:
-  vnpay:
-    tmn-code: ${VNPAY_TMN_CODE}
-    hash-secret: ${VNPAY_HASH_SECRET}
-    pay-url: ${VNPAY_PAY_URL}
-    api-url: ${VNPAY_API_URL}
-    return-url: ${VNPAY_RETURN_URL}
-    ipn-url: ${VNPAY_IPN_URL}
+  internal-api-key: ${INTERNAL_API_KEY}
+  sepay:
+    account-number: ${SEPAY_ACCOUNT_NUMBER:}
+    bank-code: ${SEPAY_BANK_CODE:}
+    account-holder: ${SEPAY_ACCOUNT_HOLDER:}
+    qr-base-url: ${SEPAY_QR_BASE_URL:https://qr.sepay.vn/img}
+    qr-template: ${SEPAY_QR_TEMPLATE:compact}
+    checkout-base-url: ${SEPAY_CHECKOUT_BASE_URL:http://localhost:8084}
+    webhook-api-key: ${SEPAY_WEBHOOK_API_KEY:}
+    payment-code-prefix: ${SEPAY_PAYMENT_CODE_PREFIX:AIR}
+    payment-code-suffix-length: ${SEPAY_PAYMENT_CODE_SUFFIX_LENGTH:12}

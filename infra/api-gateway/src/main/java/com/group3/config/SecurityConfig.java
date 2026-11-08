@@ -54,7 +54,10 @@ public class SecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
-                        .pathMatchers("/api/v1/payments/vnpay/**").permitAll()
+                        .pathMatchers("/api/v1/payments/sepay/**").permitAll()
+                        .pathMatchers("/api/sepay/**").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/status").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/checkout").permitAll()
                         .pathMatchers("/actuator/health", "/actuator/info").permitAll()
                         .anyExchange().authenticated()
                 )

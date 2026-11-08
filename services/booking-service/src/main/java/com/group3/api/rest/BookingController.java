@@ -49,7 +49,7 @@ public class BookingController {
 
     @GetMapping("/{bookingId}")
     public ResponseEntity<BookingDetailView> getById(
-            @PathVariable UUID bookingId,
+            @PathVariable("bookingId") UUID bookingId,
             @RequestHeader("X-User-Id") UUID userId
             ){
         return ResponseEntity.ok(
@@ -59,7 +59,7 @@ public class BookingController {
 
     @GetMapping("/ref/{bookingReference}")
     public ResponseEntity<BookingDetailView> getByReference(
-            @PathVariable String bookingReference,
+            @PathVariable("bookingReference") String bookingReference,
             @RequestHeader("X-User-Id") UUID userId
     ){
         return ResponseEntity.ok(
@@ -105,7 +105,7 @@ public class BookingController {
 
     @PostMapping("/{bookingId}/passengers")
     public ResponseEntity<AddPassengerResult> addPassenger(
-            @PathVariable UUID bookingId,
+            @PathVariable("bookingId") UUID bookingId,
             @RequestHeader("X-User-Id") UUID userId,
 
             @Valid
@@ -136,7 +136,7 @@ public class BookingController {
 
     @GetMapping("/{bookingId}/passengers")
     public ResponseEntity<List<BookingPassengerView>> getBookingPassengers(
-            @PathVariable UUID bookingId,
+            @PathVariable("bookingId") UUID bookingId,
 
             @RequestHeader("X-User-Id") UUID userId
     ){
@@ -148,7 +148,7 @@ public class BookingController {
 
     @PostMapping("/{bookingId}/payment")
     public ResponseEntity<InitiatePaymentResult> initiatePayment(
-            @PathVariable UUID bookingId,
+            @PathVariable("bookingId") UUID bookingId,
             @RequestHeader("X-User-Id") UUID userId
     ){
         InitiatePaymentCommand command =
@@ -164,7 +164,7 @@ public class BookingController {
 
     @PostMapping("/{bookingId}/cancel")
     public ResponseEntity<Void> cancelBooking(
-            @PathVariable UUID bookingId,
+            @PathVariable("bookingId") UUID bookingId,
             @RequestHeader("X-User-Id") UUID userId
     ){
         CancelBookingCommand command =

@@ -38,6 +38,30 @@ public class Payment {
     @Setter(AccessLevel.PRIVATE)
     ProviderTxnId providerTxnId;
 
+    public static Payment restore(
+            PaymentId id,
+            BookingId bookingId,
+            Money amount,
+            PaymentMethod method,
+            PaymentProvider provider,
+            IdempotencyKey idempotencyKey,
+            PaymentStatus status,
+            ProviderTxnId providerTxnId
+    ) {
+        if (id == null) {
+            throw new InvalidDomainValueException("Payment ID must not be null");
+        }
+        if (status == null) {
+            throw new InvalidDomainValueException("Payment status must not be null");
+        }
+        Payment payment = new Payment(
+                id, bookingId, amount, method, provider, idempotencyKey
+        );
+        payment.setStatus(status);
+        payment.setProviderTxnId(providerTxnId);
+        return payment;
+    }
+
     public static Payment create(
             BookingId bookingId,
             Money amount,

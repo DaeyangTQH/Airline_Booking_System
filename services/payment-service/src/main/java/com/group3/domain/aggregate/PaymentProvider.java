@@ -1,5 +1,5 @@
 package com.group3.domain.aggregate;
 
 public enum PaymentProvider {
-    VNPAY
+    SEPAY
 }

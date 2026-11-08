@@ -26,7 +26,7 @@ public class InternalBookingController {
 
     @PostMapping("/{bookingId}/payment-result")
     public ResponseEntity<Void> processPaymentResult(
-            @PathVariable UUID bookingId,
+            @PathVariable("bookingId") UUID bookingId,
 
             @RequestHeader(
                     value = "X-Internal-Api-Key",
