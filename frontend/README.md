@@ -14,7 +14,7 @@ Mở `http://localhost:5173`.
 
 Vite chuyển `/api/**` đến `http://localhost:8080` (API Gateway). Khi muốn đổi proxy, tạo file `.env` dựa trên `.env.example` và đặt `VITE_GATEWAY_URL=http://localhost:8080`.
 
-Khi backend đã chạy: PostgreSQL Docker `5432`, RabbitMQ `5672`, Eureka `8761`, Flight Search `8081`, Booking `8082`, User `8083`, Payment `8084`, Notification `8085`, API Gateway `8080`.
+Khi backend đã chạy: PostgreSQL Docker `5432`, RabbitMQ `5672`, Eureka `8761`, Flight Search `8083`, Booking `8082`, User `8081`, Payment `8084`, Notification `8085`, API Gateway `8080`.
 
 ## Cấu trúc chính
 
@@ -46,7 +46,7 @@ frontend/
 - `GET /api/admin/users`, `PATCH /api/admin/users/{id}/status`
 
 Chưa thể nối thật:
-- Trong bản ZIP hiện tại `flight-search-service` chưa có REST Controller. Trang `/flights` sử dụng **dữ liệu DEMO, giá không phải giá bán** và bộ lọc chỉ cho demo. Không giả mạo chuyến bay và giá thực tế.
+- Flight Search integration is described below; only implemented catalog APIs are connected.
 - Trang `/booking/:flightId` chỉ có thể tạo booking với **Flight ID UUID thật**; các thẻ demo không tự tạo vé. Booking Service cần có dịch vụ xác thực chuyến bay hoạt động.
 - `payment-service` chưa có REST API thanh toán trong ZIP; frontend không mô phỏng thanh toán thành công.
 - Notification Service chỉ có tạo thông báo và lịch nhắc, chưa có API đọc danh sách thông báo, nên `/reminders` chỉ tạo lịch nhắc.
@@ -56,3 +56,7 @@ Chưa thể nối thật:
 ## Thiết kế tham khảo
 
 Tham khảo **mô hình UX**, không sao chép hình thức nhận diện của Skyscanner, Google Flights, Traveloka. Các pattern áp dụng: tìm vé ở phần đầu trang, điểm đi/điểm đến và ngày bay, kết quả theo giá/giờ, bộ lọc và thẻ chuyến bay. Ảnh minh họa sử dụng hình tải trực tiếp từ Unsplash (cần internet khi xem), không phải ảnh của dự án hoặc ảnh giá vé thực. Nguồn tham khảo: https://www.skyscanner.com/ và https://support.google.com/travel/answer/2475306.
+
+## Flight Search integration
+
+Airport selectors load GET /api/v1/airports and map name to the airport label.

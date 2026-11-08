@@ -29,11 +29,49 @@ mvn -pl services/flight-search-service -am install -DskipTests
 mvn -pl services/flight-search-service spring-boot:run
 ```
 
-The default port is `8085`. Both Booking and Flight Search import the ignored repository-root `.env` as a properties file when run from their Maven module directories, so Maven does not need manually exported environment variables. The root `.env` was copied from `infra/.env`; copy it again if you change values in the infrastructure file. The service includes JPA and PostgreSQL dependencies, but has no domain persistence mappings or HTTP endpoints yet. The startup test excludes datasource auto-configuration so it does not require a live database.
+Copy `infra/.env.example` to `infra/.env` and configure the `FLIGHT_SEARCH_DB_*` variables. `FLIGHT_SEARCH_SERVICE_PORT=8083` sets the service port. Both Booking and Flight Search import `infra/.env` as a properties file when run from the repository root or their Maven module directories, so Maven does not need manually exported environment variables. Start PostgreSQL with `docker compose --env-file infra/.env -f infra/docker-compose.yml up -d`; on first initialization, it creates `flight_search_db`. For an existing PostgreSQL volume, create that database manually if it is missing, since initialization scripts only run on an empty data directory. Start Eureka before the service to enable discovery. API Gateway routes `/api/v1/flights/**` to `flight-search-service` through Eureka. The service includes JPA and PostgreSQL dependencies and implements the Airport catalog endpoints described below.
 
-## Open decisions for later steps
+## Airport API
 
-- Select the PostgreSQL schema and migrations for the six documented tables.
-- Select a locking strategy for atomic multi-seat holds and define the hold expiration policy.
-- Define fare validity overlap policy and how availability is reconciled with seat state.
-- Define internal API authentication and the price snapshot contract with Booking Service.
+On startup, Hibernate initializes the schema before Spring runs UTF-8 `data.sql`.
+The script seeds ten airport codes matching the frontend catalog: HAN, SGN, DAD,
+CXR, PQC, DLI, HUI, VDO, BKK, SIN. `ON CONFLICT (code) DO NOTHING` inserts only
+missing codes; restarts do not duplicate airports or overwrite edited records.
+The script is checked at each startup, but each airport is inserted only once
+while its code remains in the database. Deleting a seed airport allows it to be
+inserted again on the next startup.
+
+Airport is the first implemented catalog aggregate. Its HTTP adapter calls
+`AirportUseCase`, implemented by a transactional `AirportService`. The service uses
+the domain `AirportRepository`; the JPA adapter owns persistence mapping. Simple
+catalog reads reuse that repository without a duplicate query port. Responses reuse
+`AirportView`; errors reuse `common`'s `CustomException`, `ErrorType`, and
+`ErrorResponse`. The JPA entity has exactly the five documented airport columns;
+it does not extend `BaseEntity`, which would add audit columns outside this schema.
+The existing `ddl-auto: update` creates the airport table in the configured database.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| POST | `/api/v1/airports` | 201, airport view and Location header |
+| GET | `/api/v1/airports/{airportId}` | 200, airport view; 404 if missing |
+| GET | `/api/v1/airports?page=0&size=20` | 200, array ordered by code then ID |
+| PUT | `/api/v1/airports/{airportId}` | 200, updated airport view |
+
+Pages start at zero; size is between 1 and 100. Empty pages return an empty array.
+POST body:
+
+```json
+{"code":"HAN","name":"Noi Bai","city":"Hanoi","country":"Vietnam"}
+```
+
+PUT accepts `name`, `city`, and `country`; the airport ID and code remain unchanged.
+Codes are normalized to uppercase; invalid codes/fields return 400 and duplicate
+codes return 409, including a violation of the named database unique constraint.
+API Gateway forwards airport paths to Flight Search through Eureka. Its existing
+authentication policy applies to writes; airport GET requests are public for the customer search widget. Role-based catalog write authorization is not yet
+implemented. Direct service access has no HTTP authentication configured.
+Delete and seat hold/confirm/release operations are not implemented.
+
+Tests cover creation, normalization, duplicate codes, updates, missing records,
+pagination validation, HTTP validation/errors, persistence mapping, and translation
+of the unique constraint violation. These tests do not require a live database.
