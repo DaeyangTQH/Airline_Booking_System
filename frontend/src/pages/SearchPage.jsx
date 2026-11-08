@@ -48,7 +48,7 @@ export default function SearchPage() {
     </div></div><SearchWidget compact defaultValues={{ from, to, departure, returnDate, passengers, cabin, trip: roundtrip ? 'roundtrip' : 'oneway' }}/></div></section>
     <section className="shell search-results-body">
       <div className="demo-banner"><BadgeInfo size={22}/><div><strong>Lịch bay và giá từ hệ thống</strong>
-        <p>Dữ liệu mẫu dùng để thử nghiệm. Chức năng kiểm tra ghế và đặt chỗ đang được hoàn thiện.{roundtrip && ' Xem riêng từng chiều; chưa ghép thành vé khứ hồi.'}</p>
+        <p>Dữ liệu mẫu dùng để thử nghiệm. Kết quả lọc theo số hành khách và ghế chưa giữ; xem kết quả chưa giữ chỗ cho bạn.{roundtrip && ' Xem riêng từng chiều; chưa ghép thành vé khứ hồi.'}</p>
       </div></div>
       {roundtrip && <div className="booking-buttons" role="group" aria-label="Chiều bay">
         <button className={returnLeg ? 'btn btn-outline' : 'btn btn-primary'} onClick={() => { setLeg('outbound'); setPage(0); }}>Chiều đi · {displayDate(departure)}</button>

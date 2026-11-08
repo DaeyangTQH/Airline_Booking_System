@@ -105,3 +105,16 @@ SELECT id, flight_id, seat_number, seat_class,
 FROM missing
 WHERE position <= remaining
 ON CONFLICT DO NOTHING;
+
+-- Availability is derived data, so reconcile it from Seat on every startup.
+-- Include every flight/class, even if that class has no assigned seats.
+INSERT INTO flight_availability (flight_id, fare_class, available_seats, class_capacity)
+SELECT flight.id, classes.fare_class,
+    CAST(COUNT(seat.id) FILTER (WHERE seat.status = 'AVAILABLE') AS integer),
+    CAST(COUNT(seat.id) AS integer)
+FROM flights flight
+CROSS JOIN (VALUES ('ECONOMY'), ('BUSINESS'), ('FIRST')) AS classes(fare_class)
+LEFT JOIN seats seat ON seat.flight_id = flight.id AND seat.seat_class = classes.fare_class
+GROUP BY flight.id, classes.fare_class
+ON CONFLICT (flight_id, fare_class) DO UPDATE
+SET available_seats = EXCLUDED.available_seats, class_capacity = EXCLUDED.class_capacity;

@@ -2,6 +2,7 @@ package com.group3.flightsearch.infrastructure.adapter;
 
 import com.group3.exception.CustomException;
 import com.group3.exception.ErrorType;
+import com.group3.flightsearch.application.port.out.FlightAvailabilityPort;
 import com.group3.flightsearch.domain.aggregate.Seat;
 import com.group3.flightsearch.domain.model.FareClass;
 import com.group3.flightsearch.domain.repository.SeatRepository;
@@ -24,6 +25,7 @@ public class SeatRepositoryAdapter implements SeatRepository {
     private final SeatJpaRepository repository;
     private final FlightJpaRepository flights;
     private final SeatPersistenceMapper mapper;
+    private final FlightAvailabilityPort availability;
 
     @Override
     public Seat save(Seat seat) {
@@ -31,6 +33,7 @@ public class SeatRepositoryAdapter implements SeatRepository {
         entity.setFlight(flights.getReferenceById(seat.getFlightId().value()));
         try {
             var saved = mapper.toDomain(repository.saveAndFlush(entity));
+            availability.refresh(seat.getFlightId().value());
             return saved;
         } catch (DataIntegrityViolationException exception) {
             for (Throwable cause = exception; cause != null; cause = cause.getCause()) {

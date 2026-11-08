@@ -1,6 +1,7 @@
 package com.group3.flightsearch.infrastructure.adapter;
 
 import com.group3.flightsearch.application.port.out.FlightQueryPort;
+import com.group3.flightsearch.application.port.out.FlightAvailabilityPort;
 import com.group3.flightsearch.application.query.*;
 import com.group3.flightsearch.domain.model.FlightStatus;
 import com.group3.flightsearch.infrastructure.persistence.entity.*;
@@ -21,11 +22,12 @@ public class FlightQueryAdapter implements FlightQueryPort {
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private final FlightJpaRepository flights;
     private final FareJpaRepository fares;
+    private final FlightAvailabilityPort availability;
 
     @Override
     public Optional<FlightView> findById(UUID id) {
         return flights.findById(id).map(flight -> view(flight,
-                fares.findAllByFlightIdOrderByFareClassAscValidFromAsc(id)));
+                fares.findAllByFlightIdOrderByFareClassAscValidFromAsc(id), availability.findByFlight(id)));
     }
 
     @Override
@@ -49,6 +51,10 @@ public class FlightQueryAdapter implements FlightQueryPort {
             pricePredicates.add(cb.lessThanOrEqualTo(fare.get("validFrom"), search.pricedAt()));
             pricePredicates.add(cb.greaterThan(fare.get("validTo"), search.pricedAt()));
             if (search.fareClass() != null) pricePredicates.add(cb.equal(fare.get("fareClass"), search.fareClass()));
+            var capacity = priceQuery.from(FlightAvailabilityJpaEntity.class);
+            pricePredicates.add(cb.equal(capacity.get("flightId"), fare.get("flightId")));
+            pricePredicates.add(cb.equal(capacity.get("fareClass"), fare.get("fareClass")));
+            pricePredicates.add(cb.greaterThanOrEqualTo(capacity.get("availableSeats"), search.quantity()));
             priceQuery.select(fare.get("id")).where(pricePredicates.toArray(Predicate[]::new));
             predicates.add(cb.exists(priceQuery));
             return cb.and(predicates.toArray(Predicate[]::new));
@@ -56,20 +62,27 @@ public class FlightQueryAdapter implements FlightQueryPort {
         var rows = flights.findAll(specification, PageRequest.of(search.page(), search.size(),
                 Sort.by("departureTime", "id"))).getContent();
         if (rows.isEmpty()) return List.of();
+        var byAvailability = availability.findByFlights(rows.stream().map(FlightJpaEntity::getId).toList())
+                .stream().collect(Collectors.groupingBy(FlightAvailabilityView::flightId));
         var byFlight = fares.findAllByFlightIdInOrderByFareClassAscValidFromAsc(
                 rows.stream().map(FlightJpaEntity::getId).toList()).stream()
                 .filter(fare -> !fare.getValidFrom().isAfter(search.pricedAt()) && fare.getValidTo().isAfter(search.pricedAt()))
                 .filter(fare -> search.fareClass() == null || fare.getFareClass() == search.fareClass())
+                .filter(fare -> byAvailability.getOrDefault(fare.getFlightId(), List.of()).stream()
+                        .anyMatch(capacity -> capacity.fareClass() == fare.getFareClass()
+                                && capacity.availableSeats() >= search.quantity()))
                 .collect(Collectors.groupingBy(FareJpaEntity::getFlightId));
-        return rows.stream().map(flight -> view(flight, byFlight.getOrDefault(flight.getId(), List.of()))).toList();
+        return rows.stream().map(flight -> view(flight, byFlight.getOrDefault(flight.getId(), List.of()),
+                byAvailability.getOrDefault(flight.getId(), List.of()))).toList();
     }
 
-    private FlightView view(FlightJpaEntity flight, List<FareJpaEntity> prices) {
+    private FlightView view(FlightJpaEntity flight, List<FareJpaEntity> prices,
+                            List<FlightAvailabilityView> capacity) {
         var fareViews = prices.stream().map(fare -> new FareView(fare.getId(), fare.getFlightId(),
                 fare.getFareClass(), fare.getBasePrice(), fare.getCurrency(), fare.getValidFrom(), fare.getValidTo())).toList();
         return new FlightView(flight.getId(), flight.getFlightCode(), flight.getOriginCode(),
                 flight.getOrigin().getCity(), flight.getDestinationCode(), flight.getDestination().getCity(),
                 flight.getDepartureTime(), flight.getArrivalTime(), flight.getAircraftId(),
-                flight.getAircraft().getModel(), flight.getStatus(), fareViews);
+                flight.getAircraft().getModel(), flight.getStatus(), fareViews, capacity);
     }
 }

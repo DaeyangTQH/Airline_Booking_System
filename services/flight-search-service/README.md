@@ -78,28 +78,257 @@ of the unique constraint violation. These tests do not require a live database.
 
 ## Aircraft API
 
-POST/GET /api/v1/aircrafts and GET/PUT /api/v1/aircrafts/{id} use AircraftUseCase,
-AircraftService, the domain repository, and JPA adapter. Request: model and
-totalSeats; response reuses AircraftView. Capacity must be positive. Reductions
-validate actual per-flight assigned counts through Seat persistence. Four sample
-configurations use stable IDs; restarts preserve existing records and edits.
+Aircraft follows the same aggregate repository / application use case / HTTP
+adapter structure as Airport, reusing the existing shared error handling.
+`AircraftRequest` is reused for create/update and `AircraftView` for all responses.
+The JPA entity maps only `id`, `model`, and `total_seats` to `aircrafts`.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| POST | `/api/v1/aircrafts` | 201, aircraft view and Location header |
+| GET | `/api/v1/aircrafts?page=0&size=20` | 200, array ordered by model then ID |
+| GET | `/api/v1/aircrafts/{aircraftId}` | 200, aircraft view; 404 if missing |
+| PUT | `/api/v1/aircrafts/{aircraftId}` | 200, updated aircraft view |
+
+Create/update body:
+
+```json
+{"model":"Airbus A320","totalSeats":180}
+```
+
+Model must be nonblank and at most 255 characters; totalSeats must be a positive
+integer. Model names are not unique in the documented schema. Updates lock the
+aircraft row for the transaction. Capacity changes now validate the maximum number
+of assigned seats on any individual Flight using this Aircraft. Reducing below
+that count returns 409 with `AIRCRAFT_CAPACITY_BELOW_ASSIGNED_SEATS`. Counts include
+all seat statuses and are not summed across different flights. Seat creation
+acquires the same Aircraft lock, coordinating it with capacity changes.
+
+`data.sql` also seeds four demo aircraft configurations with stable UUIDs ending
+in 001 through 004 under `a2000000-0000-4000-8000-000000000xxx`. It runs after JPA
+initializes the tables. `ON CONFLICT (id) DO NOTHING` preserves existing seed rows
+and edits across restarts; deleted seed rows are re-created on the next startup.
+POST requests always create a new aircraft and are independent of startup seeding.
+
+API Gateway routes aircraft paths to Flight Search using its existing authenticated
+policy. No aircraft page or aircraft field exists in the customer frontend, so no
+frontend integration or page was added.
+
+Manual verification after restarting Flight Search and Gateway:
+
+1. GET `/api/v1/aircrafts?page=0&size=100` directly at port 8083, or through Gateway
+   at port 8080 with a Bearer token. A fresh catalog contains four demo aircraft.
+2. Restart Flight Search and GET again: the seed rows and their IDs remain unchanged.
+3. POST the example body; expect 201 with an ID and Location header, then GET that ID.
+4. PUT that ID with an updated model and totalSeats of 190; expect 200.
+5. Reductions that still cover every assigned Flight are allowed. Set capacity
+   below the maximum assigned seat count to get 409. A zero/missing capacity or
+   blank model returns 400; a valid but missing UUID returns 404.
+
+No Aircraft Java test classes were added; verify these flows manually.
 
 ## Flight and Fare API
 
-POST/GET /api/v1/flights, GET /api/v1/flights/{id}, and PUT /api/v1/flights/{id}/schedule.
-Manage fares under /api/v1/flights/{id}/fares; Fare writes go through the locked
-Flight aggregate. Airport codes and Aircraft UUIDs are checked and protected by
-local foreign keys. Current-fare search supports route, Vietnam-local departure
-date, class, and pagination. Seat filtering is introduced with Availability.
-Seed adds 14 flights and 42 fares with stable keys, +7-day outbound and +13-day
-return schedules relative to first seeding. Existing schedules are preserved.
-Frontend search and details use real API UUIDs and fare data; booking stays disabled.
+Flight references Airport by code and Aircraft by UUID. JPA enforces the local
+foreign keys `flights.origin_code -> airports.code`,
+`flights.destination_code -> airports.code`, `flights.aircraft_id -> aircrafts.id`,
+and `fares.flight_id -> flights.id`. No cross-service foreign key is introduced.
+Flight code is not unique: the same route number may recur on different dates.
+
+Fare is saved only through the Flight aggregate repository. Each fare update
+loads and locks the owning Flight row, preserving all existing fares and
+serializing changes through that root. Current domain rules reject overlapping
+validity periods for the same fare class; intervals are start-inclusive and
+end-exclusive. Cancelled/completed flights cannot receive fare changes, while
+restoring them from persistence remains supported.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/api/v1/flights` | Create a scheduled flight |
+| GET | `/api/v1/flights` | Search future active flights with a current fare |
+| GET | `/api/v1/flights/{id}` | Flight details, catalog labels, and all fares |
+| PUT | `/api/v1/flights/{id}/schedule` | Update departure/arrival through reschedule |
+| POST | `/api/v1/flights/{id}/fares` | Add fare through Flight |
+| GET | `/api/v1/flights/{id}/fares` | List all fares, including expired/future fares |
+| GET | `/api/v1/flights/{id}/fares/{fareId}` | Read a fare owned by this Flight |
+| PUT | `/api/v1/flights/{id}/fares/{fareId}` | Update price, currency, and validity |
+
+Example create Flight body (use an existing aircraft ID):
+
+```json
+{
+  "flightCode": "VN999",
+  "originCode": "HAN",
+  "destinationCode": "SGN",
+  "departureTime": "2026-12-15T08:00:00+07:00",
+  "arrivalTime": "2026-12-15T10:10:00+07:00",
+  "aircraftId": "a2000000-0000-4000-8000-000000000001"
+}
+```
+
+Example add Fare body (omit fareClass for PUT, which retains the existing class):
+
+```json
+{
+  "fareClass": "ECONOMY",
+  "basePrice": 1290000,
+  "currency": "VND",
+  "validFrom": "2026-11-01T00:00:00+07:00",
+  "validTo": "2026-12-15T08:00:00+07:00"
+}
+```
+
+Search parameters are optional `origin`, `destination`, `departureDate` (ISO date,
+interpreted in Asia/Ho_Chi_Minh), and `fareClass`, with `page=0&size=20` (max 100).
+Search returns an array, ordered by departure time and ID, with only fares valid
+at the server's search time and matching the requested class. Details return all
+fares. Search accepts `quantity=1` (1-9) and requires both a current fare and enough
+available seats in the SAME fare class before pagination. Flight responses include
+an `availability` array. Internal service-to-service integration is excluded from these commits.
+Gateway allows public flight GETs; write requests require the
+existing authentication policy. Role-based write authorization remains pending.
+
+Startup seed adds 14 flights and 42 fares using stable UUIDs. Airport/Aircraft
+seeds run first. Flights reference airport codes and aircraft IDs present in the
+catalog. Flight departure dates are +7 days for outbound and +13 days for return
+from first seeding, in Vietnam local time. Subsequent restarts preserve schedules,
+IDs, and edited prices. After those dates pass, choose future seeded/manual flights;
+the initializer intentionally does not roll existing schedules forward.
+
+The existing frontend search and detail pages now consume these APIs, including
+pagination and loading/error/empty states. Round-trip search displays each leg
+separately. Fare class is passed to details, which computes a basic-price estimate
+without claiming a seat reservation. No airline/baggage values are invented from
+the flight code; the schema has no such catalog fields. Booking confirmation is
+disabled until seat reservation and Booking integration are implemented.
+
+Manual verification (no new Java tests were added):
+
+1. Restart Flight Search and Gateway. Read `/api/v1/flights` and choose a seeded
+   departure date; the initial HAN-SGN date is +7 days from first Flight seeding.
+2. Open `/flights` with HAN-SGN, that date, and ECONOMY. Expect four flights;
+   change to BUSINESS/FIRST to see the corresponding seeded prices.
+3. Open a card: UUID, route, aircraft, times, class, and price must match the API.
+4. For round-trip, choose +13 days as return date and select the return leg.
+5. Restart again and compare counts/IDs: 14 seeded flights and 42 fares remain.
+6. Using direct port 8083 or authenticated Gateway writes, create a Flight with
+   nonexistent airports/aircraft: expect 404. Invalid route/time returns 400.
+7. Add/update a Fare through its Flight; negative price, invalid currency,
+   invalid dates, and overlapping intervals return 400. A fare from another Flight
+   returns 404. Inactive-flight fare changes return 409.
 
 ## Seat API
 
-POST/GET /api/v1/flights/{id}/seats and GET /api/v1/seats/{id}. New seats are AVAILABLE.
-Flight and Aircraft locks protect capacity; unique flight/number prevents duplicates.
-Aircraft reductions now validate the maximum assigned count on a single Flight.
-Seed adds up to 24 seats per sample Flight without exceeding capacity or overwriting
-existing statuses. The existing detail page shows a read-only class seat list.
-Hold, confirm, release, and inter-service integration are outside these commits.
+Seat is an independent aggregate referencing Flight by UUID. The persistence
+entity maps only the seven documented columns to `seats`. The database enforces
+the Flight FK and unique `(flight_id, seat_number)` constraint. Booking owner is
+an external UUID reference with no cross-service FK. Public `SeatView` excludes
+the booking owner and hold expiry; it contains ID, Flight ID, number, class, status.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| POST | `/api/v1/flights/{flightId}/seats` | 201, new AVAILABLE seat and Location |
+| GET | `/api/v1/flights/{flightId}/seats` | 200, paginated seat array |
+| GET | `/api/v1/seats/{seatId}` | 200, seat detail; 404 if missing |
+
+POST body:
+
+```json
+{"seatNumber":"12A","seatClass":"ECONOMY"}
+```
+
+The server assigns UUID and AVAILABLE status; clients cannot set hold/booking
+state through this API. Numbers are normalized to uppercase and validated by
+SeatNumber. Listing accepts optional `seatClass`, `page=0`, `size=20` (max 100),
+ordered by number then ID. A missing Flight returns 404 rather than an empty list.
+Creation locks the Flight and its Aircraft in one transaction before counting
+all assigned seats. Duplicate numbers, full capacity, or an inactive/departed
+Flight return 409. Different flights may use the same seat number. The unique
+constraint also protects duplicate inserts at the database boundary.
+
+Startup seed adds up to 24 demo seats per seeded Flight (336 for 14 fresh flights):
+row 1 FIRST, row 2 BUSINESS, rows 3-4 ECONOMY, columns A-F. Seat 4F is BLOCKED;
+other sample seats are AVAILABLE. UUIDs are deterministic, duplicate IDs/numbers
+are skipped, and no existing statuses/booking fields are overwritten. If aircraft
+capacity was reduced or seats were created manually, only remaining capacity is
+filled. This is a small catalog sample, not a complete aircraft cabin layout.
+
+The existing flight detail page shows a read-only list for the selected class,
+with loading/error/empty states and textual seat statuses. It loads every page
+and sorts seat numbers naturally. Viewing seats does not reserve them. Flight
+search now filters by passenger count using the Availability projection below.
+No internal hold/confirm/release endpoint is included yet.
+
+Manual verification (no new Java tests were added):
+
+1. Restart Flight Search AND Gateway. Open a seeded flight detail: ECONOMY has
+   12 demo seats, BUSINESS/FIRST each have 6, unless prior data/capacity limited seed.
+2. Inspect seat 4F under ECONOMY: it is shown as blocked. No seat can be selected.
+3. Read `/api/v1/flights/{id}/seats?size=100`, restart, and compare IDs/counts:
+   24 per fresh seeded Flight, unchanged after restart.
+4. POST a new `12A` ECONOMY seat through direct 8083 or authenticated Gateway:
+   expect 201, then POST `12a` again to the same Flight: expect 409.
+5. Read the Location path `/api/v1/seats/{seatId}`. Missing IDs return 404;
+   malformed numbers/classes or invalid pagination return 400.
+6. Reduce an Aircraft capacity below the largest assigned-seat count on a Flight:
+   expect 409. Setting it exactly to that count is allowed; creating another seat
+   on that full Flight returns 409. Restore sample capacity after testing.
+
+## FlightAvailability read model
+
+This is a projection, not an Aggregate Root: no domain repository and no public
+write endpoint. JPA maps the four documented columns with composite primary key
+`(flight_id, fare_class)` and a local Flight FK. `FlightAvailabilityView` is reused
+by Flight results and the read-only endpoints:
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET | `/api/v1/flights/{flightId}/availability` | All three fare classes |
+| GET | `/api/v1/flights/{flightId}/availability/{fareClass}` | One fare class |
+
+```json
+{"flightId":"a3000000-0000-4000-8000-000000000001","fareClass":"ECONOMY","availableSeats":11,"classCapacity":12}
+```
+
+`classCapacity` counts all Seat rows for that Flight/class, including HELD,
+BOOKED, and BLOCKED. `availableSeats` counts only AVAILABLE rows; it is not based
+on Aircraft.totalSeats. Empty classes have zero/zero rows. HELD seats remain
+unavailable until the future expiry workflow changes their state.
+
+New Flight creation initializes three class rows in its transaction. Every
+`SeatRepositoryAdapter.save` flushes Seat then calls `FlightAvailabilityPort.refresh`
+in the same transaction. Refresh requires an existing transaction; failure rolls
+back the Seat write. Future reservation workflows must use the existing Flight
+lock convention and this adapter so projection writes stay serialized per Flight.
+
+After startup seeding, `data.sql` upserts counts derived from Seat for ALL flights.
+It preserves source data and projection keys; counts are reconciled on each
+restart. Manual SQL changes to Seat require a restart to reconcile; no background
+reconciliation scheduler or database trigger is installed.
+
+Fresh seed produces 42 projection rows: ECONOMY 11/12, BUSINESS 6/6, FIRST 6/6.
+Search matches quantity to the same class as the current fare, before pagination.
+Batch projection reads populate Flight responses. Frontend passes passenger count,
+shows availability on cards, and reads the endpoint on the existing detail page.
+Viewing counts is not a reservation; booking confirmation remains disabled.
+
+Manual verification (no new Java tests):
+
+1. Start Docker/PostgreSQL and restart Flight Search. Restart Gateway if it still
+   runs the old security configuration that requires authentication for Flight GETs.
+2. Read the availability endpoint for a seeded Flight: expect default counts
+   above unless Seat data was edited. Restart and verify no duplicate keys.
+3. POST a new AVAILABLE ECONOMY Seat: availability increases immediately by one,
+   without restart. The same transaction commits Seat and its refreshed counts.
+4. Search a seeded route/date with `fareClass=FIRST&quantity=7`: expect no sample
+   results. Quantity 6 matches; quantity 0 or 10 returns 400.
+5. In frontend details, FIRST and 7 passengers shows an insufficient-seat notice;
+   ECONOMY shows 11/12 by default. Counts remain a snapshot, not a guarantee.
+6. A new Flight without seats has zero/zero for all classes; it appears in search
+   only after adding both a current fare and enough AVAILABLE seats.
+
+## Open decisions for later steps
+
+- Add schema migrations.
+- Implement atomic seat reservation, confirmation, and expiry.
+- Implement and review service-to-service integration separately.

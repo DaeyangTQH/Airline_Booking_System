@@ -15,6 +15,7 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [reload, setReload] = useState(0);
   const [seats, setSeats] = useState([]), [seatLoading, setSeatLoading] = useState(true);
   const [seatError, setSeatError] = useState(''), [seatReload, setSeatReload] = useState(0);
+  const [availability, setAvailability] = useState([]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(''); setFlight(null);
@@ -30,15 +31,22 @@ export default function BookingPage() {
   }, [flightId, reload]);
   useEffect(() => {
     const controller = new AbortController();
-    setSeats([]); setSeatError(''); setSeatLoading(true);
+    setSeats([]); setAvailability([]); setSeatError(''); setSeatLoading(true);
     if (!flight || flight.id !== flightId) return () => controller.abort();
-    seatService.list(flightId, { seatClass: cabin, signal: controller.signal })
-      .then(data => { if (!controller.signal.aborted) setSeats(data); })
+    Promise.all([
+      seatService.list(flightId, { seatClass: cabin, signal: controller.signal }),
+      flightService.availability(flightId, { signal: controller.signal })
+    ]).then(([data, counts]) => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(counts)) throw new Error('Số liệu ghế không hợp lệ.');
+        setSeats(data); setAvailability(counts);
+      })
       .catch(e => { if (!controller.signal.aborted) setSeatError(e.message); })
       .finally(() => { if (!controller.signal.aborted) setSeatLoading(false); });
     return () => controller.abort();
   }, [flightId, flight, cabin, seatReload]);
   const fares = currentFares(flight), card = flight && flightCardData(flight, cabin);
+  const capacity = availability.find(row => row.fareClass === cabin);
   const searchParams = flight ? new URLSearchParams({
     from: flight.originCode, to: flight.destinationCode,
     departure: new Date(flight.departureTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }),
@@ -71,6 +79,12 @@ export default function BookingPage() {
         {!card && <div className="inline-error">Chưa có giá đang có hiệu lực cho hạng vé này.</div>}
         <section className="seat-catalog" aria-label="Danh sách ghế">
           <div className="form-section-title"><div><h2>Ghế · {cabinName(cabin)}</h2><p>Chỉ xem trạng thái, chưa chọn hoặc giữ ghế.</p></div></div>
+          {!seatLoading && !seatError && capacity && <div className="confirm-list">
+            <div><span>Ghế đã khai báo</span><b>{capacity.classCapacity}</b></div>
+            <div><span>Ghế chưa giữ</span><b>{capacity.availableSeats}</b></div>
+            <div><span>Số hành khách</span><b>{passengers}</b></div>
+          </div>}
+          {!seatLoading && !seatError && capacity && capacity.availableSeats < passengers && <div className="inline-error" role="status">Chưa đủ ghế cho {passengers} hành khách ở hạng vé này.</div>}
           {seatLoading ? <Busy label="Đang tải ghế..."/> : seatError ? <div className="inline-error" role="alert">{seatError} <button onClick={() => setSeatReload(value => value + 1)}>Thử lại</button></div>
             : seats.length ? <div className="seat-catalog-grid">{seats.map(seat => <div key={seat.id} className={`seat-catalog-item seat-${seat.status.toLowerCase()}`}>
               <strong>{seat.seatNumber}</strong><small>{seatStatusName[seat.status] || seat.status}</small>

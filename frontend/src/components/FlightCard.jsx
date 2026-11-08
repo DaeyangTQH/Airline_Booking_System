@@ -17,6 +17,7 @@ export default function FlightCard({ flight, departure, passengers }) {
         <div><b>{flight.arrive}</b><small>{flight.destinationCode}</small></div>
       </div>
       <div className="flight-benefit">{flight.status === 'DELAYED' ? 'Đã điều chỉnh lịch bay' : 'Theo lịch trình'}</div>
+      <div className="flight-benefit">{flight.availableSeats ?? '—'} / {flight.classCapacity ?? '—'} ghế chưa giữ · {cabinName(flight.cabin)}</div>
     </div>
     <div className="flight-price"><span className="flight-price-label">Giá cơ bản / khách</span>
       <strong>{money(flight.price, flight.currency)}</strong><span className="flight-price-note">Giờ hiển thị theo múi giờ Việt Nam</span>

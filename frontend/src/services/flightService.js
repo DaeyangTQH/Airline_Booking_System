@@ -10,6 +10,9 @@ export const flightService = {
   },
   detail(id, { signal } = {}) {
     return http(`/v1/flights/${encodeURIComponent(id)}`, { useAuth: false, signal });
+  },
+  availability(id, { signal } = {}) {
+    return http(`/v1/flights/${encodeURIComponent(id)}/availability`, { useAuth: false, signal });
   }
 };
 export function currentFares(flight, now = Date.now()) {
@@ -19,7 +22,9 @@ export function flightCardData(flight, cabin) {
   const fare = currentFares(flight).find(item => item.fareClass === cabin);
   if (!fare) return null;
   const minutes = Math.round((Date.parse(flight.arrivalTime) - Date.parse(flight.departureTime)) / 60000);
+  const capacity = flight.availability?.find(row => row.fareClass === cabin);
   return { ...flight, cabin, price: Number(fare.basePrice), currency: fare.currency,
+    availableSeats: capacity?.availableSeats, classCapacity: capacity?.classCapacity,
     depart: clock.format(new Date(flight.departureTime)), arrive: clock.format(new Date(flight.arrivalTime)),
     duration: `${Math.floor(minutes / 60)}h ${minutes % 60}m` };
 }

@@ -5,6 +5,7 @@ import com.group3.exception.ErrorType;
 import com.group3.flightsearch.application.command.*;
 import com.group3.flightsearch.application.port.in.FlightUseCase;
 import com.group3.flightsearch.application.port.out.FlightQueryPort;
+import com.group3.flightsearch.application.port.out.FlightAvailabilityPort;
 import com.group3.flightsearch.application.query.*;
 import com.group3.flightsearch.domain.aggregate.Flight;
 import com.group3.flightsearch.domain.exception.InvalidDomainValueException;
@@ -32,6 +33,7 @@ public class FlightService implements FlightUseCase {
     private final AirportRepository airports;
     private final AircraftRepository aircrafts;
     private final FlightQueryPort queryPort;
+    private final FlightAvailabilityPort availability;
 
     @Override
     @Transactional
@@ -49,6 +51,7 @@ public class FlightService implements FlightUseCase {
         Flight flight = Flight.schedule(new FlightId(UUID.randomUUID()), new FlightCode(command.flightCode()),
                 origin, destination, command.departureTime(), command.arrivalTime(), aircraftId);
         repository.save(flight);
+        availability.refresh(flight.getId().value());
         return getById(flight.getId().value());
     }
 
