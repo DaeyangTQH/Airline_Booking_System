@@ -1,27 +1,107 @@
-import { useState } from 'react';
-import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BadgeInfo, Check, CircleAlert, CreditCard, LockKeyhole, Plane, ShieldCheck, Ticket } from 'lucide-react';
-import { demoFlights } from '../data/marketing';
-import { airportByCode, displayDate, money, uuidValid } from '../data/cities';
-import { bookingService } from '../services/bookingService';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-export default function BookingPage(){const {flightId}=useParams();const [params]=useSearchParams();const navigate=useNavigate();const {session,isAuthenticated}=useAuth();const toast=useToast();
-  const demo=demoFlights.find(f=>f.id===flightId);const [realId,setRealId]=useState(demo?'':flightId);
-  const [form,setForm]=useState({email:session?.email||'',phone:'',quantity:Math.max(1,Number(params.get('passengers'))||1),fareClass:demo?.cabin||'ECONOMY'});
-  const [step,setStep]=useState(1);const [saving,setSaving]=useState(false);const [confirmed,setConfirmed]=useState(null);
-  const change=(key,value)=>setForm(f=>({...f,[key]:value}));
-  const valid=uuidValid(realId)&&/^[0-9]{10}$/.test(form.phone)&&/^[^\s@]+@gmail\.com$/.test(form.email)&&Number(form.quantity)>0;
-  const submit=async()=>{if(!isAuthenticated){navigate('/login',{state:{from:{pathname:window.location.pathname,search:window.location.search}}});return;}if(!valid){toast('Vui lòng nhập Flight ID hợp lệ và thông tin liên hệ đúng định dạng.','error');return;}setSaving(true);try{const res=await bookingService.create({flightId:realId,fareClass:form.fareClass,quantity:Number(form.quantity),contact:{email:form.email,phone:form.phone}});setConfirmed(res);setStep(3);toast('Đã tạo booking thành công.');}catch(e){toast(e.message,'error');}finally{setSaving(false)}};
-  return <section className="booking-page shell"><Link className="back-link" to="/flights"><ArrowLeft size={17}/> Quay về danh sách chuyến bay</Link><div className="booking-heading"><div><span className="eyebrow">TIẾP TỤC HÀNH TRÌNH</span><h1>Thông tin đặt chỗ</h1><p>Kiểm tra kỹ mọi thông tin trước khi tạo booking.</p></div><div className="booking-steps"><span className={step>=1?'current':''}><b>1</b> Chi tiết</span><i/><span className={step>=2?'current':''}><b>2</b> Xác nhận</span><i/><span className={step>=3?'current':''}><b>3</b> Hoàn tất</span></div></div>
-  {demo&&<div className="demo-banner booking-demo"><BadgeInfo size={22}/><p><b>Bạn đang xem chuyến bay minh họa.</b> Để tạo booking thật với API hiện tại, cần nhập <b>Flight ID UUID thực</b> do Flight Search Service cung cấp và được Booking Service chấp nhận. Giá demo không được dùng để thanh toán.</p></div>}
-  {confirmed?<div className="success-panel"><span className="success-icon"><Check size={29}/></span><h2>Đặt chỗ đã được tạo!</h2><p>Mã đặt chỗ của bạn</p><div className="booking-code">{confirmed.bookingReference}</div><p>Trạng thái: <b>{confirmed.status}</b> · Giá trị trả về: <b>{money(confirmed.totalAmount,confirmed.currency)}</b></p><div className="success-actions"><Link className="btn btn-primary" to={`/trips/${confirmed.bookingId}`}>Xem đặt chỗ <ArrowRight size={16}/></Link><Link className="btn btn-outline" to="/">Về trang chủ</Link></div></div>:<div className="booking-layout"><div className="booking-form-panel">
-  {step===1?<><div className="form-section-title"><span className="form-step-icon"><Ticket size={21}/></span><div><h2>Thông tin hành trình</h2><p>Điền mã chuyến bay và thông tin liên hệ</p></div></div>
-  <div className="form-grid"><label className="field col-full"><span>Flight ID thực (UUID) *</span><input type="text" value={realId} onChange={e=>setRealId(e.target.value.trim())} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"/><small>Backend Booking cần UUID chuyến bay hợp lệ, không nhận mã demo như VN 247.</small></label>
-  <label className="field"><span>Hạng vé</span><select value={form.fareClass} onChange={e=>change('fareClass',e.target.value)}><option value="ECONOMY">Phổ thông</option><option value="BUSINESS">Thương gia</option><option value="FIRST">Hạng nhất</option></select></label>
-  <label className="field"><span>Số hành khách</span><select value={form.quantity} onChange={e=>change('quantity',e.target.value)}>{[1,2,3,4,5,6,7,8,9].map(n=><option key={n}>{n}</option>)}</select></label></div>
-  <hr className="soft-rule"/><div className="form-section-title"><span className="form-step-icon"><ShieldCheck size={21}/></span><div><h2>Thông tin liên hệ</h2><p>Thông tin được dùng để liên hệ về đặt chỗ</p></div></div>
-  <div className="form-grid"><label className="field"><span>Email liên hệ (Gmail) *</span><input type="email" value={form.email} onChange={e=>change('email',e.target.value)} placeholder="you@gmail.com" required/></label><label className="field"><span>Số điện thoại (10 số) *</span><input type="tel" inputMode="numeric" value={form.phone} onChange={e=>change('phone',e.target.value)} placeholder="09xxxxxxxx" required/></label></div>
-  <button className="btn btn-primary booking-next" onClick={()=>{if(!valid){toast('Cần Flight ID UUID, Gmail và số điện thoại 10 chữ số hợp lệ.','error');return;}setStep(2)}}>Tiếp tục <ArrowRight size={18}/></button></>:<><div className="form-section-title"><span className="form-step-icon"><Check size={21}/></span><div><h2>Xác nhận đặt chỗ</h2><p>Kiểm tra lại các thông tin trước khi gửi API</p></div></div><div className="confirm-list"><div><span>Flight ID</span><b className="long-id">{realId}</b></div><div><span>Hạng vé</span><b>{form.fareClass}</b></div><div><span>Số hành khách</span><b>{form.quantity}</b></div><div><span>Email</span><b>{form.email}</b></div><div><span>Số điện thoại</span><b>{form.phone}</b></div></div><div className="confirm-info"><LockKeyhole size={18}/> Booking Service sẽ xác định giá và trạng thái thực; không sử dụng số tiền demo bên cạnh.</div><div className="booking-buttons"><button className="btn btn-outline" onClick={()=>setStep(1)}><ArrowLeft size={17}/> Quay lại</button><button disabled={saving} className="btn btn-primary" onClick={submit}>{saving?'Đang tạo...':!isAuthenticated?'Đăng nhập để đặt chỗ':'Tạo booking'} <ArrowRight size={17}/></button></div></>}
-  </div><aside className="booking-summary"><div className="summary-top"><Plane size={20}/> TÓM TẮT HÀNH TRÌNH</div>{demo?<><h3>{airportByCode(params.get('from')||'HAN').city} <ArrowRight size={19}/> {airportByCode(params.get('to')||'SGN').city}</h3><span>{displayDate(params.get('departure'))}</span><div className="summary-flight"><div><small>KHỞI HÀNH</small><b>{demo.depart}</b><span>{params.get('from')||'HAN'}</span></div><Plane size={22}/><div><small>ĐẾN NƠI</small><b>{demo.arrive}</b><span>{params.get('to')||'SGN'}</span></div></div><div className="summary-meta"><span>{demo.airline}</span><b>{demo.number}</b></div><div className="summary-price"><small>Giá minh họa / khách</small><strong>{money(demo.price)}</strong></div></>:<><h3>Đặt chỗ với Flight ID</h3><p>Chi tiết chuyến bay sẽ được xác minh bởi Booking Service khi tạo booking.</p></>}<div className="summary-warning"><CircleAlert size={17}/> Không thanh toán bằng dữ liệu minh họa.</div><div className="summary-help"><CreditCard size={18}/> Thanh toán trực tuyến đang chờ API Payment Service.</div></aside></div>}
-</section>}
+import { useEffect, useState } from 'react';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, BadgeInfo, Plane, Ticket } from 'lucide-react';
+import Busy from '../components/Busy';
+import { money, uuidValid } from '../data/cities';
+import { flightService, currentFares, flightCardData, cabinName } from '../services/flightService';
+import { seatService } from '../services/seatService';
+
+const seatStatusName = { AVAILABLE: 'Chưa giữ', HELD: 'Đang giữ', BOOKED: 'Đã đặt', BLOCKED: 'Tạm khóa' };
+
+export default function BookingPage() {
+  const { flightId } = useParams(), [params] = useSearchParams();
+  const [flight, setFlight] = useState(null), [cabin, setCabin] = useState(params.get('cabin') || 'ECONOMY');
+  const [passengers, setPassengers] = useState(Math.max(1, Math.min(9, Number(params.get('passengers')) || 1)));
+  const [loading, setLoading] = useState(true), [error, setError] = useState(''), [reload, setReload] = useState(0);
+  const [seats, setSeats] = useState([]), [seatLoading, setSeatLoading] = useState(true);
+  const [seatError, setSeatError] = useState(''), [seatReload, setSeatReload] = useState(0);
+  const [availability, setAvailability] = useState([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true); setError(''); setFlight(null);
+    if (!uuidValid(flightId)) {
+      setError('Liên kết chuyến bay không hợp lệ. Vui lòng chọn lại chuyến bay.'); setLoading(false);
+      return () => controller.abort();
+    }
+    flightService.detail(flightId, { signal: controller.signal })
+      .then(data => { if (!controller.signal.aborted) setFlight(data); })
+      .catch(e => { if (!controller.signal.aborted) setError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [flightId, reload]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setSeats([]); setAvailability([]); setSeatError(''); setSeatLoading(true);
+    if (!flight || flight.id !== flightId) return () => controller.abort();
+    Promise.all([
+      seatService.list(flightId, { seatClass: cabin, signal: controller.signal }),
+      flightService.availability(flightId, { signal: controller.signal })
+    ]).then(([data, counts]) => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(counts)) throw new Error('Số liệu ghế không hợp lệ.');
+        setSeats(data); setAvailability(counts);
+      })
+      .catch(e => { if (!controller.signal.aborted) setSeatError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setSeatLoading(false); });
+    return () => controller.abort();
+  }, [flightId, flight, cabin, seatReload]);
+  const fares = currentFares(flight), card = flight && flightCardData(flight, cabin);
+  const capacity = availability.find(row => row.fareClass === cabin);
+  const searchParams = flight ? new URLSearchParams({
+    from: flight.originCode, to: flight.destinationCode,
+    departure: new Date(flight.departureTime).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }),
+    passengers: String(passengers), cabin, trip: 'oneway'
+  }) : null;
+  const back = searchParams ? `/flights?${searchParams}` : '/flights';
+  const dateTime = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return <section className="booking-page shell">
+    <Link className="back-link" to={back}><ArrowLeft size={17}/> Quay về danh sách chuyến bay</Link>
+    <div className="booking-heading"><div><span className="eyebrow">THÔNG TIN HÀNH TRÌNH</span><h1>Chi tiết chuyến bay</h1><p>Kiểm tra lịch trình và giá vé hiện hành.</p></div></div>
+    {loading ? <Busy/> : error ? <div className="inline-error" role="alert">{error} <button onClick={() => setReload(value => value + 1)}>Thử lại</button></div> : flight && <>
+      <div className="demo-banner booking-demo"><BadgeInfo size={22}/><p>Đây là dữ liệu mẫu để thử nghiệm. Bạn có thể xem trạng thái ghế; chức năng giữ ghế và xác nhận đặt chỗ đang được hoàn thiện.</p></div>
+      <div className="booking-layout"><div className="booking-form-panel">
+        <div className="form-section-title"><span className="form-step-icon"><Ticket size={21}/></span><div><h2>{flight.flightCode}</h2><p>{flight.aircraftModel} · {flight.status}</p></div></div>
+        <div className="confirm-list">
+          <div><span>Điểm đi</span><b>{flight.originCity} ({flight.originCode})</b></div>
+          <div><span>Điểm đến</span><b>{flight.destinationCity} ({flight.destinationCode})</b></div>
+          <div><span>Khởi hành</span><b>{dateTime(flight.departureTime)}</b></div>
+          <div><span>Đến nơi</span><b>{dateTime(flight.arrivalTime)}</b></div>
+        </div>
+        <div className="form-grid">
+          <label className="field"><span>Hạng vé</span><select value={cabin} onChange={e => setCabin(e.target.value)}>
+            {!fares.some(fare => fare.fareClass === cabin) && <option value={cabin}>{cabinName(cabin)} — chưa có giá</option>}
+            {fares.map(fare => <option key={fare.id} value={fare.fareClass}>{cabinName(fare.fareClass)}</option>)}
+          </select></label>
+          <label className="field"><span>Số hành khách</span><select value={passengers} onChange={e => setPassengers(Number(e.target.value))}>
+            {[1,2,3,4,5,6,7,8,9].map(value => <option key={value} value={value}>{value}</option>)}
+          </select></label>
+        </div>
+        {!card && <div className="inline-error">Chưa có giá đang có hiệu lực cho hạng vé này.</div>}
+        <section className="seat-catalog" aria-label="Danh sách ghế">
+          <div className="form-section-title"><div><h2>Ghế · {cabinName(cabin)}</h2><p>Chỉ xem trạng thái, chưa chọn hoặc giữ ghế.</p></div></div>
+          {!seatLoading && !seatError && capacity && <div className="confirm-list">
+            <div><span>Ghế đã khai báo</span><b>{capacity.classCapacity}</b></div>
+            <div><span>Ghế chưa giữ</span><b>{capacity.availableSeats}</b></div>
+            <div><span>Số hành khách</span><b>{passengers}</b></div>
+          </div>}
+          {!seatLoading && !seatError && capacity && capacity.availableSeats < passengers && <div className="inline-error" role="status">Chưa đủ ghế cho {passengers} hành khách ở hạng vé này.</div>}
+          {seatLoading ? <Busy label="Đang tải ghế..."/> : seatError ? <div className="inline-error" role="alert">{seatError} <button onClick={() => setSeatReload(value => value + 1)}>Thử lại</button></div>
+            : seats.length ? <div className="seat-catalog-grid">{seats.map(seat => <div key={seat.id} className={`seat-catalog-item seat-${seat.status.toLowerCase()}`}>
+              <strong>{seat.seatNumber}</strong><small>{seatStatusName[seat.status] || seat.status}</small>
+            </div>)}</div> : <p>Chưa có ghế được khai báo cho hạng vé này.</p>}
+        </section>
+        <div className="booking-buttons"><button className="btn btn-primary" disabled>Đặt chỗ chưa khả dụng</button><Link className="btn btn-outline" to={back}>Chọn chuyến khác <ArrowRight size={16}/></Link></div>
+      </div><aside className="booking-summary">
+        <div className="summary-top"><Plane size={20}/> TÓM TẮT HÀNH TRÌNH</div>
+        <h3>{flight.originCity} <ArrowRight size={19}/> {flight.destinationCity}</h3>
+        <span>{dateTime(flight.departureTime)} · Giờ Việt Nam</span>
+        {card && <><div className="summary-flight">
+          <div><small>KHỞI HÀNH</small><b>{card.depart}</b><span>{flight.originCode}</span></div><Plane size={22}/>
+          <div><small>ĐẾN NƠI</small><b>{card.arrive}</b><span>{flight.destinationCode}</span></div>
+        </div><div className="summary-price"><small>Giá cơ bản / khách</small><strong>{money(card.price, card.currency)}</strong></div>
+        <div className="summary-meta"><span>Tạm tính · {passengers} khách</span><b>{money(card.price * passengers, card.currency)}</b></div></>}
+        <div className="summary-warning">Giá và trạng thái ghế có thể thay đổi. Xem danh sách không đồng nghĩa với giữ chỗ.</div>
+      </aside></div>
+    </>}
+  </section>;
+}
