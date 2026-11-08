@@ -1,7 +1,9 @@
 package com.group3.infrastructure.persistence;
 
 import com.group3.infrastructure.persistence.entity.TicketEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -29,5 +31,16 @@ public interface TicketJpaRepository extends JpaRepository<TicketEntity, UUID> {
     Optional<TicketEntity> findDetailByIdAndUserId(
             @Param("ticketId") UUID ticketId,
             @Param("userId") UUID userId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT t
+        FROM TicketEntity t
+        WHERE t.id = :ticketId
+        """)
+    Optional<TicketEntity> findByIdForUpdate(
+            @Param("ticketId")
+            UUID ticketId
     );
 }

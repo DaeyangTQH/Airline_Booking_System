@@ -49,3 +49,6 @@ eureka:
 
 app:
   internal-api-key: ${INTERNAL_API_KEY}
+
+  booking-expiration:
+    fixed-delay-ms: ${BOOKING_EXPIRATION_FIXED_DELAY_MS:60000}

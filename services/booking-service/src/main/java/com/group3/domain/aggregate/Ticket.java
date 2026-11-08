@@ -116,6 +116,14 @@ public class Ticket {
         this.seatId = id;
     }
 
+    public void removeSeat() {
+        ensureIssued(
+                "Only issued ticket can have its seat removed"
+        );
+
+        seatId = null;
+    }
+
     public void cancel() {
         if(status == TicketStatus.CANCELLED) {
             return;

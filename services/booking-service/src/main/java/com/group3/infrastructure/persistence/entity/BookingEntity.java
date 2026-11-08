@@ -49,6 +49,10 @@ import java.util.UUID;
                 @Index(
                         name = "idx_bookings_expires_at",
                         columnList = "expires_at"
+                ),
+                @Index(
+                        name = "idx_bookings_status_expires_at",
+                        columnList = "status, expires_at"
                 )
         }
 )
