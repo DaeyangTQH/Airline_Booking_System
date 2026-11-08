@@ -22,3 +22,59 @@ VALUES
     ('a2000000-0000-4000-8000-000000000003', 'Boeing 787', 294),
     ('a2000000-0000-4000-8000-000000000004', 'ATR 72', 72)
 ON CONFLICT (id) DO NOTHING;
+
+-- Dates are relative to the first startup (Vietnam local time). Existing schedules
+-- are never moved on later startups. Default UI searches use +7 days / +13 days.
+WITH samples (number, flight_code, origin_code, destination_code, day_offset, local_time, aircraft_number) AS (
+    VALUES
+        (1, 'VN247', 'HAN', 'SGN', 7, TIME '06:15', 2),
+        (2, 'VJ129', 'HAN', 'SGN', 7, TIME '09:45', 1),
+        (3, 'QH221', 'HAN', 'SGN', 7, TIME '13:20', 1),
+        (4, 'VN261', 'HAN', 'SGN', 7, TIME '17:10', 3),
+        (5, 'VN248', 'SGN', 'HAN', 13, TIME '07:00', 2),
+        (6, 'VJ130', 'SGN', 'HAN', 13, TIME '10:30', 1),
+        (7, 'QH222', 'SGN', 'HAN', 13, TIME '14:00', 1),
+        (8, 'VN262', 'SGN', 'HAN', 13, TIME '18:00', 3),
+        (9, 'VN171', 'HAN', 'DAD', 7, TIME '08:00', 2),
+        (10, 'VN172', 'DAD', 'HAN', 13, TIME '15:00', 2),
+        (11, 'VJ451', 'HAN', 'PQC', 7, TIME '09:00', 1),
+        (12, 'VJ452', 'PQC', 'HAN', 13, TIME '16:00', 1),
+        (13, 'QH301', 'HAN', 'DLI', 7, TIME '11:00', 1),
+        (14, 'QH302', 'DLI', 'HAN', 13, TIME '17:00', 1)
+), schedules AS (
+    SELECT samples.*,
+        (((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + day_offset + local_time)
+            AT TIME ZONE 'Asia/Ho_Chi_Minh') AS departure,
+        ('a2000000-0000-4000-8000-' || lpad(aircraft_number::text, 12, '0'))::uuid AS aircraft
+    FROM samples
+)
+INSERT INTO flights (id, flight_code, origin_code, destination_code, departure_time, arrival_time, aircraft_id, status)
+SELECT ('a3000000-0000-4000-8000-' || lpad(number::text, 12, '0'))::uuid,
+    flight_code, origin_code, destination_code, departure, departure + INTERVAL '2 hours 10 minutes',
+    schedules.aircraft, 'SCHEDULED'
+FROM schedules
+JOIN airports origin ON origin.code = schedules.origin_code
+JOIN airports destination ON destination.code = schedules.destination_code
+JOIN aircrafts aircraft ON aircraft.id = schedules.aircraft
+ON CONFLICT (id) DO NOTHING;
+
+-- Fares belong only to the seeded flights; class intervals do not overlap.
+WITH classes (number, fare_class, multiplier) AS (
+    VALUES (1, 'ECONOMY', 1.0), (2, 'BUSINESS', 2.0), (3, 'FIRST', 3.0)
+)
+INSERT INTO fares (id, flight_id, fare_class, base_price, currency, valid_from, valid_to)
+SELECT ('a4000000-0000-4000-8000-' || lpad((right(flight.id::text, 12)::bigint * 10 + classes.number)::text, 12, '0'))::uuid,
+    flight.id, classes.fare_class,
+    (CASE WHEN flight.flight_code LIKE 'VJ%' THEN 890000
+          WHEN flight.flight_code LIKE 'QH%' THEN 1150000 ELSE 1290000 END) * classes.multiplier,
+    'VND', CURRENT_TIMESTAMP - INTERVAL '1 day', flight.departure_time
+FROM flights flight CROSS JOIN classes
+WHERE flight.id BETWEEN 'a3000000-0000-4000-8000-000000000001'::uuid AND 'a3000000-0000-4000-8000-000000000014'::uuid
+    AND flight.departure_time > CURRENT_TIMESTAMP
+    AND NOT EXISTS (
+        SELECT 1 FROM fares existing
+        WHERE existing.flight_id = flight.id AND existing.fare_class = classes.fare_class
+            AND existing.valid_from < flight.departure_time
+            AND existing.valid_to > CURRENT_TIMESTAMP - INTERVAL '1 day'
+    )
+ON CONFLICT (id) DO NOTHING;

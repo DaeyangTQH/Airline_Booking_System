@@ -58,7 +58,7 @@ public final class Flight {
             throw new InvalidDomainValueException("Fares must not be null");
         }
         Flight flight = new Flight(id, code, originCode, destinationCode, departureTime, arrivalTime, aircraftId, status);
-        fares.forEach(flight::addFare);
+        fares.forEach(flight::attachFare);
         return flight;
     }
 
@@ -103,6 +103,11 @@ public final class Flight {
     }
 
     public void addFare(Fare fare) {
+        requireActive();
+        attachFare(fare);
+    }
+
+    private void attachFare(Fare fare) {
         if (fare == null || !fare.getFlightId().equals(id)) {
             throw new InvalidDomainValueException("Fare must belong to this flight");
         }
@@ -114,11 +119,13 @@ public final class Flight {
     }
 
     public void changeFarePrice(FareId fareId, Money price) {
+        requireActive();
         int index = fareIndex(fareId);
         fares.set(index, fares.get(index).withPrice(price));
     }
 
     public void changeFareValidity(FareId fareId, ValidityPeriod validity) {
+        requireActive();
         int index = fareIndex(fareId);
         Fare changed = fares.get(index).withValidity(validity);
         ensureNoOverlap(changed, fareId);

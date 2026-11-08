@@ -83,3 +83,14 @@ AircraftService, the domain repository, and JPA adapter. Request: model and
 totalSeats; response reuses AircraftView. Capacity must be positive. Reductions
 are deferred until Seat persistence can validate assigned counts. Four sample
 configurations use stable IDs; restarts preserve existing records and edits.
+
+## Flight and Fare API
+
+POST/GET /api/v1/flights, GET /api/v1/flights/{id}, and PUT /api/v1/flights/{id}/schedule.
+Manage fares under /api/v1/flights/{id}/fares; Fare writes go through the locked
+Flight aggregate. Airport codes and Aircraft UUIDs are checked and protected by
+local foreign keys. Current-fare search supports route, Vietnam-local departure
+date, class, and pagination. Seat filtering is introduced with Availability.
+Seed adds 14 flights and 42 fares with stable keys, +7-day outbound and +13-day
+return schedules relative to first seeding. Existing schedules are preserved.
+Frontend search and details use real API UUIDs and fare data; booking stays disabled.

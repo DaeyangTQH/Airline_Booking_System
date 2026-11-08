@@ -47,7 +47,7 @@ frontend/
 
 Chưa thể nối thật:
 - Flight Search integration is described below; only implemented catalog APIs are connected.
-- Trang `/booking/:flightId` chỉ có thể tạo booking với **Flight ID UUID thật**; các thẻ demo không tự tạo vé. Booking Service cần có dịch vụ xác thực chuyến bay hoạt động.
+- Flight details use backend UUIDs and current fares; booking confirmation is not enabled.
 - `payment-service` chưa có REST API thanh toán trong ZIP; frontend không mô phỏng thanh toán thành công.
 - Notification Service chỉ có tạo thông báo và lịch nhắc, chưa có API đọc danh sách thông báo, nên `/reminders` chỉ tạo lịch nhắc.
 
@@ -61,3 +61,4 @@ Tham khảo **mô hình UX**, không sao chép hình thức nhận diện của 
 
 Airport selectors load GET /api/v1/airports and map name to the airport label.
 Aircraft has backend catalog APIs; no aircraft-management page is added.
+Flight search and details consume /api/v1/flights with pagination and current prices.
