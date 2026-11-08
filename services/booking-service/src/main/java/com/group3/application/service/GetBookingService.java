@@ -18,8 +18,9 @@ public class GetBookingService implements GetBookingUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public BookingDetailView getById(UUID bookingId) {
-        return bookingQueryPort.findDetailById(bookingId)
+    public BookingDetailView getById(UUID bookingId, UUID userId) {
+        return bookingQueryPort
+                .findDetailByIdAndUserId(bookingId, userId)
                 .orElseThrow(() -> new BookingNotFoundException(
                         "Booking not found with ID: " + bookingId
                 ));
@@ -27,9 +28,13 @@ public class GetBookingService implements GetBookingUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public BookingDetailView getByReference(String bookingReference) {
+    public BookingDetailView getByReference(
+            String bookingReference,
+            UUID userId
+    ) {
 
-        return bookingQueryPort.findDetailByReference(bookingReference)
+        return bookingQueryPort
+                .findDetailByReferenceAndUserId(bookingReference, userId)
                 .orElseThrow(() -> new BookingNotFoundException(
                         "Booking not found with reference: " + bookingReference
                 ));
