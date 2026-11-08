@@ -78,3 +78,30 @@ WHERE flight.id BETWEEN 'a3000000-0000-4000-8000-000000000001'::uuid AND 'a30000
             AND existing.valid_to > CURRENT_TIMESTAMP - INTERVAL '1 day'
     )
 ON CONFLICT (id) DO NOTHING;
+
+-- A small demo seat catalog for each seeded flight: up to 24 seats, never above
+-- aircraft capacity. Existing seat numbers, statuses, and booking references remain unchanged.
+WITH candidates AS (
+    SELECT flight.id AS flight_id, aircraft.total_seats, sample.seat_index,
+        ('a5000000-0000-4000-8000-' || lpad((right(flight.id::text, 12)::bigint * 100 + sample.seat_index)::text, 12, '0'))::uuid AS id,
+        (((sample.seat_index - 1) / 6 + 1)::text || chr(65 + (sample.seat_index - 1) % 6)) AS seat_number,
+        CASE WHEN sample.seat_index <= 6 THEN 'FIRST'
+             WHEN sample.seat_index <= 12 THEN 'BUSINESS' ELSE 'ECONOMY' END AS seat_class
+    FROM flights flight
+    JOIN aircrafts aircraft ON aircraft.id = flight.aircraft_id
+    CROSS JOIN generate_series(1, 24) AS sample(seat_index)
+    WHERE flight.id BETWEEN 'a3000000-0000-4000-8000-000000000001'::uuid AND 'a3000000-0000-4000-8000-000000000014'::uuid
+), missing AS (
+    SELECT candidate.*,
+        ROW_NUMBER() OVER (PARTITION BY flight_id ORDER BY seat_index) AS position,
+        total_seats - (SELECT count(*) FROM seats assigned WHERE assigned.flight_id = candidate.flight_id) AS remaining
+    FROM candidates candidate
+    WHERE NOT EXISTS (SELECT 1 FROM seats existing WHERE existing.flight_id = candidate.flight_id AND existing.seat_number = candidate.seat_number)
+      AND NOT EXISTS (SELECT 1 FROM seats existing WHERE existing.id = candidate.id)
+)
+INSERT INTO seats (id, flight_id, seat_number, seat_class, status, held_by_booking_id, hold_expires_at)
+SELECT id, flight_id, seat_number, seat_class,
+    CASE WHEN seat_index = 24 THEN 'BLOCKED' ELSE 'AVAILABLE' END, NULL, NULL
+FROM missing
+WHERE position <= remaining
+ON CONFLICT DO NOTHING;

@@ -9,6 +9,7 @@ import com.group3.flightsearch.application.query.AircraftView;
 import com.group3.flightsearch.domain.aggregate.Aircraft;
 import com.group3.flightsearch.domain.exception.InvalidDomainValueException;
 import com.group3.flightsearch.domain.repository.AircraftRepository;
+import com.group3.flightsearch.domain.repository.SeatRepository;
 import com.group3.flightsearch.domain.valueobject.AircraftId;
 import com.group3.flightsearch.domain.valueobject.AircraftModel;
 import com.group3.flightsearch.domain.valueobject.SeatCapacity;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class AircraftService implements AircraftUseCase {
     private final AircraftRepository repository;
+    private final SeatRepository seats;
 
     @Override
     @Transactional
@@ -45,10 +47,10 @@ public class AircraftService implements AircraftUseCase {
         SeatCapacity capacity = new SeatCapacity(command.totalSeats());
         Aircraft aircraft = repository.findByIdForUpdate(new AircraftId(command.id()))
                 .orElseThrow(() -> notFound(command.id()));
-        int assignedSeats = aircraft.getTotalSeats().value();
+        int assignedSeats = seats.maxAssignedSeatsByAircraft(aircraft.getId());
         if (capacity.value() < assignedSeats) {
-            throw new CustomException("AIRCRAFT_CAPACITY_REDUCTION_UNAVAILABLE", ErrorType.CONFLICT,
-                    "Capacity reduction requires assigned-seat validation, added with Seat persistence");
+            throw new CustomException("AIRCRAFT_CAPACITY_BELOW_ASSIGNED_SEATS", ErrorType.CONFLICT,
+                    "Capacity cannot be below the maximum assigned seat count of a flight: " + assignedSeats);
         }
         aircraft.changeModel(model);
         aircraft.changeCapacity(capacity, assignedSeats);

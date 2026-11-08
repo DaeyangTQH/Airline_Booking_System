@@ -81,7 +81,7 @@ of the unique constraint violation. These tests do not require a live database.
 POST/GET /api/v1/aircrafts and GET/PUT /api/v1/aircrafts/{id} use AircraftUseCase,
 AircraftService, the domain repository, and JPA adapter. Request: model and
 totalSeats; response reuses AircraftView. Capacity must be positive. Reductions
-are deferred until Seat persistence can validate assigned counts. Four sample
+validate actual per-flight assigned counts through Seat persistence. Four sample
 configurations use stable IDs; restarts preserve existing records and edits.
 
 ## Flight and Fare API
@@ -94,3 +94,12 @@ date, class, and pagination. Seat filtering is introduced with Availability.
 Seed adds 14 flights and 42 fares with stable keys, +7-day outbound and +13-day
 return schedules relative to first seeding. Existing schedules are preserved.
 Frontend search and details use real API UUIDs and fare data; booking stays disabled.
+
+## Seat API
+
+POST/GET /api/v1/flights/{id}/seats and GET /api/v1/seats/{id}. New seats are AVAILABLE.
+Flight and Aircraft locks protect capacity; unique flight/number prevents duplicates.
+Aircraft reductions now validate the maximum assigned count on a single Flight.
+Seed adds up to 24 seats per sample Flight without exceeding capacity or overwriting
+existing statuses. The existing detail page shows a read-only class seat list.
+Hold, confirm, release, and inter-service integration are outside these commits.
