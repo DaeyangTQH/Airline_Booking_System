@@ -99,4 +99,5 @@ public class BookingPassenger {
     public ContactInfo getContactInfo() {
         return contactInfo;
     }
+
 }

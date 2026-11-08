@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @RequiredArgsConstructor
 public class ProcessPaymentResultService implements ProcessPaymentResultUseCase {
@@ -58,7 +60,8 @@ public class ProcessPaymentResultService implements ProcessPaymentResultUseCase 
 
             booking.confirmPayment(
                     paymentId,
-                    paidAmount
+                    paidAmount,
+                    Instant.now()
             );
 
             bookingRepository.save(booking);

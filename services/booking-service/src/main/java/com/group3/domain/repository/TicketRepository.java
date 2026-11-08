@@ -13,6 +13,8 @@ public interface TicketRepository {
 
     Optional<Ticket> findById(TicketId id);
 
+    Optional<Ticket> findByIdForUpdate(TicketId id);
+
     Optional<Ticket> findByNumber(TicketNumber number);
 
     Optional<Ticket> findByPassengerId(BookingPassengerId passengerId);

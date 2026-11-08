@@ -329,8 +329,16 @@ public class Booking {
 
     public void confirmPayment(
             PaymentId paymentId,
-            Money paidAmount
+            Money paidAmount,
+            Instant now
     ){
+
+        if (now == null) {
+            throw new InvalidDomainValueException(
+                    "Current time must not be null"
+            );
+        }
+
         if(paymentId == null) {
             throw new InvalidDomainValueException(
                     "Payment ID must not be null"
@@ -371,6 +379,12 @@ public class Booking {
             return;
         }
 
+        if (!now.isBefore(expiresAt)) {
+            throw new InvalidBookingStateException(
+                    "Cannot confirm payment for an expired booking"
+            );
+        }
+
         status = BookingStatus.CONFIRMED;
     }
 
@@ -378,6 +392,13 @@ public class Booking {
         if(status == BookingStatus.CANCELLED){
             return;
         }
+
+        if (status == BookingStatus.CONFIRMED) {
+            throw new InvalidBookingStateException(
+                    "Confirmed booking cannot be cancelled without a refund policy"
+            );
+        }
+
         status = BookingStatus.CANCELLED;
     }
 
