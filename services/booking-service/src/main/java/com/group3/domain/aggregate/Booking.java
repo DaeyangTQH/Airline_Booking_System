@@ -395,38 +395,11 @@ public class Booking {
 
         if (status == BookingStatus.CONFIRMED) {
             throw new InvalidBookingStateException(
-                    "Confirmed booking cannot be cancelled without a refund policy"
+                    "Confirmed booking cannot be cancelled"
             );
         }
 
         status = BookingStatus.CANCELLED;
-    }
-
-    public boolean isExpired(Instant now){
-        if(now == null){
-            throw new InvalidDomainValueException(
-                    "Current time must not be null"
-            );
-        }
-        return status == BookingStatus.PENDING
-                && !now.isBefore(expiresAt);
-    }
-
-    public void expire(Instant now){
-        if(isExpired(now)){
-            status = BookingStatus.CANCELLED;
-        }
-    }
-
-    public boolean canAddPassenger() {
-        return status == BookingStatus.CONFIRMED
-                && passengers.size() < ticketQuantity.value();
-    }
-
-    public int remainingPassengerSlots() {
-        int remaining =
-                ticketQuantity.value() - passengers.size();
-        return Math.max(remaining, 0);
     }
 
     public void addPassenger(BookingPassenger passenger){

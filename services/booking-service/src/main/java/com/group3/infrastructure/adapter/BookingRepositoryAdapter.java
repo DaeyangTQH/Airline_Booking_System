@@ -53,22 +53,6 @@ public class BookingRepositoryAdapter implements BookingRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Optional<Booking> findByReference(BookingReference reference) {
-        return bookingJpaRepository.findByBookingReference(reference.value())
-                .map(this::loadAggregate);
-    }
-
-    @Override
-    @Transactional
-    public List<Booking> findAllByUserId(UserId userId) {
-        return bookingJpaRepository.findAllByUserId(userId.value())
-                .stream()
-                .map(this::loadAggregate)
-                .toList();
-    }
-
-    @Override
     @Transactional
     public Optional<Booking> findByIdForUpdate(BookingId id) {
         return bookingJpaRepository
