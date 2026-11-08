@@ -1,6 +1,5 @@
 package com.group3.application.service;
 
-import com.group3.application.exception.BookingAccessDeniedException;
 import com.group3.application.port.in.GetBookingPassengersUseCase;
 import com.group3.application.port.out.BookingQueryPort;
 import com.group3.application.query.BookingDetailView;
@@ -25,16 +24,11 @@ public class GetBookingPassengersService implements GetBookingPassengersUseCase 
 
         BookingDetailView booking =
                 bookingQueryPort
-                        .findDetailById(bookingId)
+                        .findDetailByIdAndUserId(bookingId, userId)
                         .orElseThrow(() -> new BookingNotFoundException(
                                 "Booking not found with ID: " + bookingId
                         ));
 
-        if(!booking.userId().equals(userId)) {
-            throw new BookingAccessDeniedException(
-                    "You do not have permission to view passengers of this booking"
-            );
-        }
         return booking.passengers();
     }
 }

@@ -20,6 +20,16 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
 
     Optional<BookingEntity> findByBookingReference(String bookingReference);
 
+    Optional<BookingEntity> findByIdAndUserId(
+            UUID bookingId,
+            UUID userId
+    );
+
+    Optional<BookingEntity> findByBookingReferenceAndUserId(
+            String bookingReference,
+            UUID userId
+    );
+
     boolean existsByBookingReference(String bookingReference);
 
     List<BookingEntity> findAllByUserId(UUID userId);

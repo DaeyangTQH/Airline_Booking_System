@@ -49,19 +49,24 @@ public class BookingController {
 
     @GetMapping("/{bookingId}")
     public ResponseEntity<BookingDetailView> getById(
-            @PathVariable UUID bookingId
+            @PathVariable UUID bookingId,
+            @RequestHeader("X-User-Id") UUID userId
             ){
         return ResponseEntity.ok(
-                getBookingUseCase.getById(bookingId)
+                getBookingUseCase.getById(bookingId, userId)
         );
     }
 
     @GetMapping("/ref/{bookingReference}")
     public ResponseEntity<BookingDetailView> getByReference(
-            @PathVariable String bookingReference
+            @PathVariable String bookingReference,
+            @RequestHeader("X-User-Id") UUID userId
     ){
         return ResponseEntity.ok(
-                getBookingUseCase.getByReference(bookingReference)
+                getBookingUseCase.getByReference(
+                        bookingReference,
+                        userId
+                )
         );
     }
 

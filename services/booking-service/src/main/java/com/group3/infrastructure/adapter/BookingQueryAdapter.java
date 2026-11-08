@@ -23,15 +23,25 @@ public class BookingQueryAdapter implements BookingQueryPort {
     private final BookingPassengerJpaRepository bookingPassengerJpaRepository;
 
     @Override
-    public Optional<BookingDetailView> findDetailById(UUID bookingId) {
-        return bookingJpaRepository.findById(bookingId)
+    public Optional<BookingDetailView> findDetailByIdAndUserId(
+            UUID bookingId,
+            UUID userId
+    ) {
+        return bookingJpaRepository
+                .findByIdAndUserId(bookingId, userId)
                 .map(this::toDetailView);
     }
 
     @Override
-    public Optional<BookingDetailView> findDetailByReference(String bookingReference) {
+    public Optional<BookingDetailView> findDetailByReferenceAndUserId(
+            String bookingReference,
+            UUID userId
+    ) {
         return bookingJpaRepository
-                .findByBookingReference(bookingReference)
+                .findByBookingReferenceAndUserId(
+                        bookingReference,
+                        userId
+                )
                 .map(this::toDetailView);
     }
 

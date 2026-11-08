@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public interface GetBookingUseCase {
 
-    BookingDetailView getById(UUID bookingId);
+    BookingDetailView getById(UUID bookingId, UUID userId);
 
-    BookingDetailView getByReference(String bookingReference);
+    BookingDetailView getByReference(String bookingReference, UUID userId);
 }

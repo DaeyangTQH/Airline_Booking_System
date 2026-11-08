@@ -9,9 +9,15 @@ import java.util.UUID;
 
 public interface BookingQueryPort {
 
-    Optional<BookingDetailView> findDetailById(UUID bookingId);
+    Optional<BookingDetailView> findDetailByIdAndUserId(
+            UUID bookingId,
+            UUID userId
+    );
 
-    Optional<BookingDetailView> findDetailByReference(String bookingReference);
+    Optional<BookingDetailView> findDetailByReferenceAndUserId(
+            String bookingReference,
+            UUID userId
+    );
 
     List<BookingSummaryView> findSummariesByUserId(UUID userId);
 }
