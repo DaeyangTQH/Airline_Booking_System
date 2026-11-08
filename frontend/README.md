@@ -60,3 +60,4 @@ Tham khảo **mô hình UX**, không sao chép hình thức nhận diện của 
 ## Flight Search integration
 
 Airport selectors load GET /api/v1/airports and map name to the airport label.
+Aircraft has backend catalog APIs; no aircraft-management page is added.

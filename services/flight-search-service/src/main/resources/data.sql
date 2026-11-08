@@ -12,3 +12,13 @@ VALUES
     ('a1000000-0000-4000-8000-000000000009', 'BKK', 'Suvarnabhumi', 'Bangkok', 'Thailand'),
     ('a1000000-0000-4000-8000-000000000010', 'SIN', 'Changi', 'Singapore', 'Singapore')
 ON CONFLICT (code) DO NOTHING;
+
+-- Demo configurations, not manufacturer capacity specifications.
+-- Stable IDs make this seed idempotent without making model names unique.
+INSERT INTO aircrafts (id, model, total_seats)
+VALUES
+    ('a2000000-0000-4000-8000-000000000001', 'Airbus A320', 180),
+    ('a2000000-0000-4000-8000-000000000002', 'Airbus A321', 220),
+    ('a2000000-0000-4000-8000-000000000003', 'Boeing 787', 294),
+    ('a2000000-0000-4000-8000-000000000004', 'ATR 72', 72)
+ON CONFLICT (id) DO NOTHING;

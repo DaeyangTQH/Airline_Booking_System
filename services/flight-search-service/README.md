@@ -75,3 +75,11 @@ Delete and seat hold/confirm/release operations are not implemented.
 Tests cover creation, normalization, duplicate codes, updates, missing records,
 pagination validation, HTTP validation/errors, persistence mapping, and translation
 of the unique constraint violation. These tests do not require a live database.
+
+## Aircraft API
+
+POST/GET /api/v1/aircrafts and GET/PUT /api/v1/aircrafts/{id} use AircraftUseCase,
+AircraftService, the domain repository, and JPA adapter. Request: model and
+totalSeats; response reuses AircraftView. Capacity must be positive. Reductions
+are deferred until Seat persistence can validate assigned counts. Four sample
+configurations use stable IDs; restarts preserve existing records and edits.
