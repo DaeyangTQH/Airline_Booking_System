@@ -16,10 +16,6 @@ public interface BookingRepository {
 
     Optional<Booking> findById(BookingId id);
 
-    Optional<Booking> findByReference(BookingReference reference);
-
-    List<Booking> findAllByUserId(UserId userId);
-
     Optional<Booking> findByIdForUpdate(BookingId id);
 
     boolean existsByReference(BookingReference reference);

@@ -14,13 +14,7 @@ import java.util.UUID;
 @Repository
 public interface TicketJpaRepository extends JpaRepository<TicketEntity, UUID> {
 
-    Optional<TicketEntity> findByTicketNumber(String ticketNumber);
-
-    Optional<TicketEntity> findByPassenger_Id(UUID passengerId);
-
     boolean existsByTicketNumber(String ticketNumber);
-
-    boolean existsByPassenger_Id(UUID passengerId);
 
     @Query("""
         SELECT t FROM TicketEntity t

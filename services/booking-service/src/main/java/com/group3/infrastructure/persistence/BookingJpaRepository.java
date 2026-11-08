@@ -18,8 +18,6 @@ import java.util.UUID;
 @Repository
 public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID> {
 
-    Optional<BookingEntity> findByBookingReference(String bookingReference);
-
     Optional<BookingEntity> findByIdAndUserId(
             UUID bookingId,
             UUID userId
@@ -31,8 +29,6 @@ public interface BookingJpaRepository extends JpaRepository<BookingEntity, UUID>
     );
 
     boolean existsByBookingReference(String bookingReference);
-
-    List<BookingEntity> findAllByUserId(UUID userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

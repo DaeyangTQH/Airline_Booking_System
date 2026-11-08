@@ -15,12 +15,6 @@ public interface BookingPassengerJpaRepository extends JpaRepository<BookingPass
 
     List<BookingPassengerEntity> findAllByBooking_Id(UUID bookingId);
 
-    Long countByBooking_Id(UUID bookingId);
-
-    boolean existsByIdAndBooking_Id(UUID passengerId, UUID bookingId);
-
-    void deleteAllByBooking_Id(UUID bookingId);
-
     @Query("""
         SELECT p.booking.id
         FROM BookingPassengerEntity p
