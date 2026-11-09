@@ -9,7 +9,7 @@ import java.security.SecureRandom;
 public class RandomBookingReferenceGenerator implements BookingReferenceGenerator {
 
     private static final int REFERENCE_LENGTH = 6;
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0postgres456789";
     private final SecureRandom random = new SecureRandom();
     @Override
     public BookingReference generate() {

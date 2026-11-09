@@ -35,4 +35,4 @@ build/
 .DS_Store
 
 ### env ###
-.env
+infra/.env

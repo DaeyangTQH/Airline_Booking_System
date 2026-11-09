@@ -232,7 +232,7 @@ export default function BookingPage() {
                       type="tel"
                       value={contact.phone}
                       onChange={(e) => setContact((c) => ({ ...c, phone: e.target.value }))}
-                      placeholder="0901234567"
+                      placeholder="090postgres4567"
                       required
                     />
                   </label>

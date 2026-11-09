@@ -184,7 +184,7 @@ Thêm Add-ons (optional)
 <table>
 <tr><th>#</th><th>Field</th><th>Data Type</th><th>Null</th><th>Key / Constraint</th><th>Description</th></tr>
 <tr><td>1</td><td>id</td><td>UUID</td><td>No</td><td>PK</td><td>Unique identifier của booking.</td></tr>
-<tr><td>2</td><td>booking_ref</td><td>VARCHAR(6)</td><td>No</td><td>UNIQUE</td><td>Mã booking public, ví dụ ABC123.</td></tr>
+<tr><td>2</td><td>booking_ref</td><td>VARCHAR(6)</td><td>No</td><td>UNIQUE</td><td>Mã booking public, ví dụ ABCpostgres.</td></tr>
 <tr><td>3</td><td>user_id</td><td>UUID</td><td>No</td><td>External Ref</td><td>ID user từ User Service.</td></tr>
 <tr><td>4</td><td>flight_id</td><td>UUID</td><td>No</td><td>External Ref</td><td>ID chuyến bay từ Flying Search Service.</td></tr>
 <tr><td>5</td><td>fare_class</td><td>VARCHAR(30)</td><td>No</td><td></td><td>Hạng vé: ECONOMY / BUSINESS / ...</td></tr>
@@ -517,7 +517,7 @@ Request
   "fareClass": "ECONOMY",
   "quantity": 2,
   "contact": {
-    "phone": "0123456789",
+    "phone": "0postgres456789",
     "email": "user@example.com"
   }
 }
@@ -525,7 +525,7 @@ Request
 Response 201
 {
   "bookingId": "uuid",
-  "bookingRef": "ABC123",
+  "bookingRef": "ABCpostgres",
   "status": "PENDING",
   "flightId": "uuid",
   "fareClass": "ECONOMY",
@@ -554,9 +554,9 @@ Request
 {
   "passengerProfileId": "uuid-or-null",
   "fullName": "Nguyen Van A",
-  "passport": "B1234567",
+  "passport": "Bpostgres4567",
   "dob": "2003-05-10",
-  "phone": "0123456789",
+  "phone": "0postgres456789",
   "email": "a@example.com"
 }
 
