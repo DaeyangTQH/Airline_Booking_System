@@ -30,7 +30,7 @@ class SePayGatewayAdapterTest {
         properties.setMerchantId("SP-TEST-MERCHANT");
         properties.setSecretKey("spsk_test_dummy_secret");
         properties.setCheckoutInitUrl("https://pay-sandbox.sepay.vn/v1/checkout/init");
-        properties.setCallbackBaseUrl("http://localhost:8084");
+        properties.setCallbackBaseUrl("http://localhost:8080");
         properties.setFrontendReturnUrl("http://localhost:5173/payment-return");
         properties.setPaymentMethod("BANK_TRANSFER");
         adapter = new SePayGatewayAdapter(properties);
@@ -41,7 +41,7 @@ class SePayGatewayAdapterTest {
         Payment payment = payment();
         String url = adapter.buildPayRedirectUrl(payment);
         assertEquals(
-                "http://localhost:8084/api/v1/payments/" + payment.getId().value() + "/pay",
+                "http://localhost:8080/api/v1/payments/" + payment.getId().value() + "/pay",
                 url
         );
     }
@@ -79,15 +79,15 @@ class SePayGatewayAdapterTest {
         assertTrue(fields.get("order_invoice_number").startsWith(payment.getId().value() + "-"));
         String paymentId = payment.getId().value().toString();
         assertEquals(
-                "http://localhost:8084/api/v1/payments/sepay/return/success/" + paymentId,
+                "http://localhost:8080/api/v1/payments/sepay/return/success/" + paymentId,
                 fields.get("success_url")
         );
         assertEquals(
-                "http://localhost:8084/api/v1/payments/sepay/return/error/" + paymentId,
+                "http://localhost:8080/api/v1/payments/sepay/return/error/" + paymentId,
                 fields.get("error_url")
         );
         assertEquals(
-                "http://localhost:8084/api/v1/payments/sepay/return/cancel/" + paymentId,
+                "http://localhost:8080/api/v1/payments/sepay/return/cancel/" + paymentId,
                 fields.get("cancel_url")
         );
         assertTrue(fields.containsKey("signature"));

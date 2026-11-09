@@ -59,7 +59,7 @@ public class SePayGatewayAdapter implements SePayGatewayPort {
     public String buildPayRedirectUrl(Payment payment) {
         String base = properties.getCallbackBaseUrl();
         if (base == null || base.isBlank()) {
-            base = "http://localhost:8084";
+            base = "http://localhost:8080";
         }
         return UriComponentsBuilder
                 .fromUriString(base.replaceAll("/$", ""))
