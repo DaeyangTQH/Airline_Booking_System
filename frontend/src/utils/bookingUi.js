@@ -37,7 +37,23 @@ const API_MESSAGE_VI = {
   'Date of birth must be in the past or present':
     'Ngày sinh phải là ngày trong quá khứ hoặc hôm nay.',
   'You do not have permission to modify this booking':
-    'Bạn không có quyền chỉnh sửa booking này.'
+    'Bạn không có quyền chỉnh sửa booking này.',
+  'You do not have permission to modify this ticket':
+    'Bạn không có quyền chỉnh sửa vé này.',
+  'Seat is not available':
+    'Ghế này không còn trống. Vui lòng chọn ghế khác.',
+  'Flight or seat was not found':
+    'Không tìm thấy chuyến bay hoặc ghế.',
+  'Could not communicate with Flight Search Service':
+    'Không kết nối được dịch vụ ghế/chuyến bay. Thử lại sau.',
+  'Only issued ticket can be assigned a seat':
+    'Chỉ vé đã phát hành mới được gán ghế.',
+  'Only issued ticket can have its seat removed':
+    'Chỉ vé đã phát hành mới được gỡ ghế.',
+  'Seat ID must not be null':
+    'Chưa chọn ghế.',
+  'Ticket not found with ID:':
+    'Không tìm thấy vé.'
 };
 
 export function bookingStatusLabel(status) {
@@ -78,6 +94,21 @@ export function apiMessageVi(message) {
   }
   if (lower.includes('cannot exceed ticket quantity')) {
     return 'Số hành khách không được vượt quá số vé đã mua.';
+  }
+  if (lower.includes('seat is not available')) {
+    return 'Ghế này không còn trống. Vui lòng chọn ghế khác.';
+  }
+  if (lower.includes('only issued ticket')) {
+    return 'Chỉ vé đã phát hành mới thao tác được ghế.';
+  }
+  if (lower.includes('flight or seat was not found')) {
+    return 'Không tìm thấy chuyến bay hoặc ghế.';
+  }
+  if (lower.includes('could not communicate with flight')) {
+    return 'Không kết nối được dịch vụ ghế/chuyến bay. Thử lại sau.';
+  }
+  if (lower.includes('ticket not found')) {
+    return 'Không tìm thấy vé.';
   }
   return message;
 }
