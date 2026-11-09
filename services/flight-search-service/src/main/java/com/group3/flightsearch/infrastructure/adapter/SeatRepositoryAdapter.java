@@ -38,6 +38,11 @@ public class SeatRepositoryAdapter implements SeatRepository {
         } catch (DataIntegrityViolationException exception) {
             for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
                 if (cause instanceof ConstraintViolationException violation
+                        && "uk_seats_assigned_ticket".equalsIgnoreCase(violation.getConstraintName())) {
+                    throw new CustomException("TICKET_ALREADY_ASSIGNED", ErrorType.CONFLICT,
+                            "Ticket already has a seat assignment");
+                }
+                if (cause instanceof ConstraintViolationException violation
                         && "uk_seats_flight_number".equalsIgnoreCase(violation.getConstraintName())) {
                     throw new CustomException("SEAT_NUMBER_ALREADY_EXISTS", ErrorType.CONFLICT,
                             "Seat already exists on this flight: " + seat.getNumber().value());
@@ -50,6 +55,11 @@ public class SeatRepositoryAdapter implements SeatRepository {
     @Override
     public Optional<Seat> findById(SeatId id) {
         return repository.findById(id.value()).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Seat> findByAssignedTicketId(TicketId ticketId) {
+        return repository.findByAssignedTicketId(ticketId.value()).map(mapper::toDomain);
     }
 
     @Override
