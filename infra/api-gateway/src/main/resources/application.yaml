@@ -55,11 +55,6 @@ spring:
               predicates:
                 - Path=/api/v1/payments/**
 
-            - id: payment-sepay-webhook
-              uri: lb://payment-service
-              predicates:
-                - Path=/api/sepay/**
-
 server:
   port: 8080
 

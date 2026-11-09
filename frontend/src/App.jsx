@@ -14,10 +14,34 @@ import AuthPage from './pages/AuthPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import NotFoundPage from './pages/NotFoundPage';
 import PaymentPage from './pages/PaymentPage';
-export default function App(){return <><ScrollToTop/><Routes><Route element={<SiteLayout/>}>
-  <Route path="/" element={<HomePage/>}/><Route path="/flights" element={<SearchPage/>}/><Route path="/booking/:flightId" element={<BookingPage/>}/>
-  <Route path="/login" element={<AuthPage mode="login"/>}/><Route path="/register" element={<AuthPage mode="register"/>}/>
-  <Route element={<ProtectedRoute/>}><Route path="/trips" element={<MyTripsPage/>}/><Route path="/trips/:bookingId" element={<TripDetailPage/>}/><Route path="/payment/:bookingId" element={<PaymentPage/>}/><Route path="/passengers" element={<PassengerPage/>}/><Route path="/profile" element={<ProfilePage/>}/><Route path="/reminders" element={<ReminderPage/>}/></Route>
-  <Route element={<ProtectedRoute admin/>}><Route path="/admin/users" element={<AdminUsersPage/>}/></Route>
-  <Route path="*" element={<NotFoundPage/>}/>
-</Route></Routes></>}
+import PaymentReturnPage from './pages/PaymentReturnPage';
+
+export default function App() {
+  return (
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route element={<SiteLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/flights" element={<SearchPage />} />
+          <Route path="/booking/:flightId" element={<BookingPage />} />
+          <Route path="/login" element={<AuthPage mode="login" />} />
+          <Route path="/register" element={<AuthPage mode="register" />} />
+          <Route path="/payment-return" element={<PaymentReturnPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/trips" element={<MyTripsPage />} />
+            <Route path="/trips/:bookingId" element={<TripDetailPage />} />
+            <Route path="/payment/:bookingId" element={<PaymentPage />} />
+            <Route path="/passengers" element={<PassengerPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/reminders" element={<ReminderPage />} />
+          </Route>
+          <Route element={<ProtectedRoute admin />}>
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+          </Route>
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </>
+  );
+}

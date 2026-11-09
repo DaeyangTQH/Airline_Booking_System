@@ -12,48 +12,37 @@ import org.springframework.stereotype.Component;
 public class SePayProperties {
 
     /**
-     * Số tài khoản / VA nhận tiền (VD: SBPAY... hoặc số TK).
+     * Merchant ID từ Cổng thanh toán SePay (Sandbox / Live).
      */
-    private String accountNumber;
+    private String merchantId;
 
     /**
-     * Short name ngân hàng. Test mode mặc định của SePay là {@code ACMEBank}
-     * (không có trên VietQR thật). Live: MBBank, Vietcombank, BIDV, ...
+     * Secret Key ký form — {@code spsk_test_...} (sandbox) hoặc {@code spsk_live_...}.
      */
-    private String bankCode;
-
-    private String accountHolder = "";
+    private String secretKey;
 
     /**
-     * Base URL tạo ảnh QR VietQR. ACMEBank sẽ không dùng URL này.
+     * Sandbox: https://pay-sandbox.sepay.vn/v1/checkout/init
+     * Live: https://pay.sepay.vn/v1/checkout/init
      */
-    private String qrBaseUrl = "https://qr.sepay.vn/img";
-
-    private String qrTemplate = "compact";
+    private String checkoutInitUrl = "https://pay-sandbox.sepay.vn/v1/checkout/init";
 
     /**
-     * Public base của payment/gateway để mở trang checkout.
-     * VD: http://localhost:8084 hoặc http://localhost:8080
+     * Base URL của payment-service (success/error/cancel).
      */
-    private String checkoutBaseUrl = "http://localhost:8084";
+    private String callbackBaseUrl = "http://localhost:8084";
 
     /**
-     * API Key webhook — header Authorization: Apikey {key}
+     * FE nhận kết quả sau khi SePay redirect về.
      */
-    private String webhookApiKey;
+    private String frontendReturnUrl = "http://localhost:5173/payment-return";
 
     /**
-     * Tiền tố mã thanh toán (khớp cấu hình SePay: Cấu hình mã thanh toán).
+     * CARD | BANK_TRANSFER | NAPAS_BANK_TRANSFER
      */
-    private String paymentCodePrefix = "AIR";
+    private String paymentMethod = "BANK_TRANSFER";
 
-    /**
-     * Độ dài hậu tố hex lấy từ paymentId (SePay cho phép tối đa ~30).
-     */
-    private int paymentCodeSuffixLength = 12;
+    private String currency = "VND";
 
-    public boolean isVietQrSupported() {
-        String bank = bankCode == null ? "" : bankCode.trim();
-        return !bank.isEmpty() && !bank.equalsIgnoreCase("ACMEBank") && !bank.equalsIgnoreCase("ACME");
-    }
+    private String lang = "vi";
 }

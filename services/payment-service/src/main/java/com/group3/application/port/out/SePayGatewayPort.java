@@ -2,33 +2,24 @@ package com.group3.application.port.out;
 
 import com.group3.domain.aggregate.Payment;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.LinkedHashMap;
 
 public interface SePayGatewayPort {
 
-    String paymentCode(Payment payment);
+    /**
+     * Mã hóa đơn gửi SePay ({@code order_invoice_number}) — dùng paymentId.
+     */
+    String invoiceNumber(Payment payment);
 
     /**
-     * URL trang checkout (hiển thị QR / thông tin CK). Đây là {@code paymentUrl} trả về client.
+     * URL mở form auto-submit → trang thanh toán SePay Sandbox/Live.
      */
-    String buildCheckoutUrl(Payment payment);
+    String buildPayRedirectUrl(Payment payment);
 
     /**
-     * URL ảnh QR (VietQR nếu bank được hỗ trợ; fallback QR text cho ACMEBank Test Mode).
+     * Field form POST tới {@code checkout/init} (đã có signature).
      */
-    String buildQrImageUrl(Payment payment);
+    LinkedHashMap<String, String> buildCheckoutFormFields(Payment payment);
 
-    /**
-     * Parse mã / nội dung CK → UUID đầy đủ nếu mã chứa full UUID;
-     * nếu chỉ có hex ngắn thì trả empty (caller lookup theo prefix).
-     */
-    Optional<UUID> parsePaymentId(String codeOrContent);
-
-    /**
-     * Hex hậu tố trong mã thanh toán (không gồm prefix), dùng lookup DB.
-     */
-    Optional<String> extractCodeSuffix(String codeOrContent);
-
-    boolean isVietQrSupported();
+    String checkoutInitUrl();
 }

@@ -33,8 +33,8 @@ public class GetPaymentStatusService implements GetPaymentStatusPort {
         return new PaymentStatusResult(
                 payment.getId().value(),
                 payment.getStatus().name(),
-                sePayGatewayPort.paymentCode(payment),
-                sePayGatewayPort.buildCheckoutUrl(payment)
+                sePayGatewayPort.invoiceNumber(payment),
+                sePayGatewayPort.buildPayRedirectUrl(payment)
         );
     }
 }

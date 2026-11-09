@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,59 +27,86 @@ class SePayGatewayAdapterTest {
     @BeforeEach
     void setUp() {
         properties = new SePayProperties();
-        properties.setAccountNumber("SBPAY7605943182");
-        properties.setBankCode("ACMEBank");
-        properties.setQrBaseUrl("https://qr.sepay.vn/img");
-        properties.setQrTemplate("compact");
-        properties.setCheckoutBaseUrl("http://localhost:8084");
-        properties.setPaymentCodePrefix("AIR");
-        properties.setPaymentCodeSuffixLength(12);
+        properties.setMerchantId("SP-TEST-MERCHANT");
+        properties.setSecretKey("spsk_test_dummy_secret");
+        properties.setCheckoutInitUrl("https://pay-sandbox.sepay.vn/v1/checkout/init");
+        properties.setCallbackBaseUrl("http://localhost:8084");
+        properties.setFrontendReturnUrl("http://localhost:5173/payment-return");
+        properties.setPaymentMethod("BANK_TRANSFER");
         adapter = new SePayGatewayAdapter(properties);
     }
 
     @Test
-    void acmeBankIsNotVietQrSupported() {
-        assertFalse(adapter.isVietQrSupported());
-    }
-
-    @Test
-    void checkoutUrlPointsToLocalPage() {
+    void payRedirectUrlPointsToBridge() {
         Payment payment = payment();
-        String url = adapter.buildCheckoutUrl(payment);
+        String url = adapter.buildPayRedirectUrl(payment);
         assertEquals(
-                "http://localhost:8084/api/v1/payments/" + payment.getId().value() + "/checkout",
+                "http://localhost:8084/api/v1/payments/" + payment.getId().value() + "/pay",
                 url
         );
     }
 
     @Test
-    void qrFallbackUsesQrServerForAcmeBank() {
+    void invoiceNumberIsPaymentId() {
         Payment payment = payment();
-        String url = adapter.buildQrImageUrl(payment);
-        assertTrue(url.startsWith("https://api.qrserver.com/v1/create-qr-code/"));
-        assertTrue(url.contains("ACMEBank") || url.toLowerCase().contains("acmebank") || url.contains("data="));
+        assertEquals(payment.getId().value().toString(), adapter.invoiceNumber(payment));
     }
 
     @Test
-    void paymentCodeIsShortPrefixedHex() {
+    void checkoutFormUsesNodeStyleFieldOrder() {
         Payment payment = payment();
-        String code = adapter.paymentCode(payment);
-        assertTrue(code.startsWith("AIR"));
-        assertEquals(15, code.length());
+        LinkedHashMap<String, String> fields = adapter.buildCheckoutFormFields(payment);
+
         assertEquals(
-                payment.getId().value().toString().replace("-", "").substring(0, 12).toUpperCase(),
-                code.substring(3)
+                java.util.List.of(
+                        "merchant",
+                        "operation",
+                        "payment_method",
+                        "order_invoice_number",
+                        "order_amount",
+                        "currency",
+                        "order_description",
+                        "success_url",
+                        "error_url",
+                        "cancel_url",
+                        "lang",
+                        "signature"
+                ),
+                java.util.List.copyOf(fields.keySet())
         );
+        assertEquals("BANK_TRANSFER", fields.get("payment_method"));
+        assertEquals("150000", fields.get("order_amount"));
+        assertTrue(fields.get("order_invoice_number").startsWith(payment.getId().value() + "-"));
+        assertTrue(fields.containsKey("signature"));
+        assertFalse(fields.get("signature").isBlank());
     }
 
     @Test
-    void extractSuffixFromTransferContent() {
+    void eachCheckoutGetsUniqueInvoiceNumber() throws Exception {
         Payment payment = payment();
-        String content = "NGUYEN VAN A " + adapter.paymentCode(payment) + " chuyen tien";
+        String a = adapter.buildCheckoutFormFields(payment).get("order_invoice_number");
+        Thread.sleep(1);
+        String b = adapter.buildCheckoutFormFields(payment).get("order_invoice_number");
+        assertTrue(a.startsWith(payment.getId().value() + "-"));
+        assertTrue(b.startsWith(payment.getId().value() + "-"));
+        assertFalse(a.equals(b));
+    }
+
+    @Test
+    void signatureMatchesNodeSdkFieldOrder() {
+        Payment payment = payment();
+        LinkedHashMap<String, String> fields = adapter.buildCheckoutFormFields(payment);
         assertEquals(
-                adapter.paymentCode(payment).substring(3),
-                adapter.extractCodeSuffix(content).orElseThrow()
+                adapter.signFields(fieldsWithoutSignature(fields)),
+                fields.get("signature")
         );
+        assertTrue(fields.get("signature").length() > 10);
+    }
+
+    private static LinkedHashMap<String, String> fieldsWithoutSignature(LinkedHashMap<String, String> fields) {
+        LinkedHashMap<String, String> copy = new LinkedHashMap<>(fields);
+        copy.remove("signature");
+        return copy;
     }
 
     private Payment payment() {

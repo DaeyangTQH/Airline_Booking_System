@@ -59,7 +59,7 @@ public class CreatePaymentService implements CreatePaymentPort {
         return new CreatePaymentResult(
                 payment.getId().value(),
                 payment.getStatus().name(),
-                sePayGatewayPort.buildCheckoutUrl(payment)
+                sePayGatewayPort.buildPayRedirectUrl(payment)
         );
     }
 

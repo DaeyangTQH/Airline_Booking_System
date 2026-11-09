@@ -62,12 +62,11 @@ eureka:
 app:
   internal-api-key: ${INTERNAL_API_KEY}
   sepay:
-    account-number: ${SEPAY_ACCOUNT_NUMBER:}
-    bank-code: ${SEPAY_BANK_CODE:}
-    account-holder: ${SEPAY_ACCOUNT_HOLDER:}
-    qr-base-url: ${SEPAY_QR_BASE_URL:https://qr.sepay.vn/img}
-    qr-template: ${SEPAY_QR_TEMPLATE:compact}
-    checkout-base-url: ${SEPAY_CHECKOUT_BASE_URL:http://localhost:8084}
-    webhook-api-key: ${SEPAY_WEBHOOK_API_KEY:}
-    payment-code-prefix: ${SEPAY_PAYMENT_CODE_PREFIX:AIR}
-    payment-code-suffix-length: ${SEPAY_PAYMENT_CODE_SUFFIX_LENGTH:12}
+    merchant-id: ${SEPAY_MERCHANT_ID:}
+    secret-key: ${SEPAY_SECRET_KEY:}
+    checkout-init-url: ${SEPAY_CHECKOUT_INIT_URL:https://pay-sandbox.sepay.vn/v1/checkout/init}
+    callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8084}
+    frontend-return-url: ${SEPAY_FRONTEND_RETURN_URL:http://localhost:5173/payment-return}
+    payment-method: ${SEPAY_PAYMENT_METHOD:BANK_TRANSFER}
+    currency: ${SEPAY_CURRENCY:VND}
+    lang: ${SEPAY_LANG:vi}
