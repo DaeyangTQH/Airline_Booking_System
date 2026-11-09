@@ -5,6 +5,8 @@ import com.group3.exception.ErrorType;
 import com.group3.flightsearch.application.port.in.GetFareQuoteUseCase;
 import com.group3.flightsearch.application.port.out.FlightQueryPort;
 import com.group3.flightsearch.application.query.FareQuoteView;
+import com.group3.flightsearch.application.query.FareView;
+import com.group3.flightsearch.application.query.FlightAvailabilityView;
 import com.group3.flightsearch.domain.exception.InvalidDomainValueException;
 import com.group3.flightsearch.domain.model.FareClass;
 import com.group3.flightsearch.domain.model.FlightStatus;
@@ -15,6 +17,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 
 @Service
@@ -32,12 +36,18 @@ public class GetFareQuoteService implements GetFareQuoteUseCase {
         // Booking TicketQuantity accepts any positive integer, unlike the public 1-9 search UI.
         if (quantity <= 0) throw new InvalidDomainValueException("Quantity must be greater than zero");
         Instant pricedAt = Instant.now();
-        var flight = flights.findById(flightId).orElseThrow(() -> new CustomException(
-                "FLIGHT_NOT_FOUND", ErrorType.NOT_FOUND, "Flight not found: " + flightId));
-        var currentFares = flight.fares().stream()
-                .filter(fare -> fare.fareClass() == fareClass)
-                .filter(fare -> !pricedAt.isBefore(fare.validFrom()) && pricedAt.isBefore(fare.validTo()))
-                .toList();
+        var flightResult = flights.findById(flightId);
+        if (flightResult.isEmpty()) {
+            throw new CustomException("FLIGHT_NOT_FOUND", ErrorType.NOT_FOUND, "Flight not found: " + flightId);
+        }
+        var flight = flightResult.get();
+        List<FareView> currentFares = new ArrayList<>();
+        for (FareView candidate : flight.fares()) {
+            if (candidate.fareClass() == fareClass && !pricedAt.isBefore(candidate.validFrom())
+                    && pricedAt.isBefore(candidate.validTo())) {
+                currentFares.add(candidate);
+            }
+        }
         if (currentFares.isEmpty()) {
             throw new CustomException("FARE_NOT_FOUND", ErrorType.NOT_FOUND,
                     "No current fare for flight " + flightId + " and class " + fareClass);
@@ -51,10 +61,18 @@ public class GetFareQuoteService implements GetFareQuoteUseCase {
             throw new CustomException("FARE_CURRENCY_UNSUPPORTED", ErrorType.CONFLICT,
                     "Booking Service currently supports VND and USD fares only");
         }
-        int availableSeats = flight.availability().stream().filter(row -> row.fareClass() == fareClass)
-                .findFirst().orElseThrow(() -> new CustomException("FLIGHT_AVAILABILITY_UNAVAILABLE",
-                        ErrorType.INTERNAL, "Availability projection is missing for this flight and class"))
-                .availableSeats();
+        FlightAvailabilityView capacity = null;
+        for (FlightAvailabilityView row : flight.availability()) {
+            if (row.fareClass() == fareClass) {
+                capacity = row;
+                break;
+            }
+        }
+        if (capacity == null) {
+            throw new CustomException("FLIGHT_AVAILABILITY_UNAVAILABLE", ErrorType.INTERNAL,
+                    "Availability projection is missing for this flight and class");
+        }
+        int availableSeats = capacity.availableSeats();
         // Booking checks availableSeats against quantity separately after checking bookable.
         boolean bookable = (flight.status() == FlightStatus.SCHEDULED || flight.status() == FlightStatus.DELAYED)
                 && flight.departureTime().isAfter(pricedAt);

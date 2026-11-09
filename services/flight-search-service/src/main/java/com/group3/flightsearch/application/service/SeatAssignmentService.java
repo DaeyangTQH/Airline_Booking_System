@@ -29,12 +29,21 @@ public class SeatAssignmentService implements SeatAssignmentUseCase {
         var flightKey = new FlightId(flightId);
         var ticketKey = new TicketId(ticketId);
         var seatKey = new SeatId(seatId);
-        // Same lock convention as seat creation: serialize inventory mutations per flight.
-        var flight = flights.findByIdForUpdate(flightKey).orElseThrow(() -> missingFlight(flightId));
+        // Serialize inventory mutations per flight.
+        var flightResult = flights.findByIdForUpdate(flightKey);
+        if (flightResult.isEmpty()) {
+            throw missingFlight(flightId);
+        }
+        var flight = flightResult.get();
         var current = seats.findByAssignedTicketId(ticketKey);
-        current.ifPresent(seat -> requireFlight(seat, flightKey));
-        var target = seats.findById(seatKey).orElseThrow(() ->
-                new CustomException("SEAT_NOT_FOUND", ErrorType.NOT_FOUND, "Seat not found: " + seatId));
+        if (current.isPresent()) {
+            requireFlight(current.get(), flightKey);
+        }
+        var targetResult = seats.findById(seatKey);
+        if (targetResult.isEmpty()) {
+            throw new CustomException("SEAT_NOT_FOUND", ErrorType.NOT_FOUND, "Seat not found: " + seatId);
+        }
+        var target = targetResult.get();
         requireFlight(target, flightKey);
         // A retry of an already completed PUT is successful even after departure.
         if (current.isPresent() && current.get().getId().equals(seatKey)) {
@@ -48,10 +57,11 @@ public class SeatAssignmentService implements SeatAssignmentUseCase {
         }
         // Validate the target before releasing the old seat. HELD/BLOCKED/unowned BOOKED stay unavailable.
         target.assignToTicket(ticketKey);
-        current.ifPresent(previous -> {
+        if (current.isPresent()) {
+            var previous = current.get();
             previous.releaseFromTicket(ticketKey);
             seats.save(previous); // Flush the unique ticket reference before assigning the replacement.
-        });
+        }
         seats.save(target);
     }
 
@@ -59,13 +69,17 @@ public class SeatAssignmentService implements SeatAssignmentUseCase {
     public void release(UUID flightId, UUID ticketId) {
         var flightKey = new FlightId(flightId);
         var ticketKey = new TicketId(ticketId);
-        flights.findByIdForUpdate(flightKey).orElseThrow(() -> missingFlight(flightId));
+        if (flights.findByIdForUpdate(flightKey).isEmpty()) {
+            throw missingFlight(flightId);
+        }
         // Missing assignment is already released; repeated DELETE returns success.
-        seats.findByAssignedTicketId(ticketKey).ifPresent(seat -> {
+        var assignment = seats.findByAssignedTicketId(ticketKey);
+        if (assignment.isPresent()) {
+            var seat = assignment.get();
             requireFlight(seat, flightKey);
             seat.releaseFromTicket(ticketKey);
             seats.save(seat);
-        });
+        }
     }
 
     private void requireFlight(Seat seat, FlightId flightId) {

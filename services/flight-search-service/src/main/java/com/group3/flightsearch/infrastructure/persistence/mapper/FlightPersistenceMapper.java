@@ -8,39 +8,19 @@ import com.group3.flightsearch.infrastructure.persistence.entity.FareJpaEntity;
 import org.springframework.stereotype.Component;
 import java.util.Currency;
 import java.util.List;
+import java.util.ArrayList;
 
 @Component
 public class FlightPersistenceMapper {
-    public FlightJpaEntity toEntity(Flight flight) {
-        var entity = new FlightJpaEntity();
-        entity.setId(flight.getId().value());
-        entity.setFlightCode(flight.getCode().value());
-        entity.setOriginCode(flight.getOriginCode().value());
-        entity.setDestinationCode(flight.getDestinationCode().value());
-        entity.setDepartureTime(flight.getDepartureTime());
-        entity.setArrivalTime(flight.getArrivalTime());
-        entity.setAircraftId(flight.getAircraftId().value());
-        entity.setStatus(flight.getStatus());
-        return entity;
-    }
-
     public Flight toDomain(FlightJpaEntity flight, List<FareJpaEntity> fares) {
+        List<Fare> domainFares = new ArrayList<>();
+        for (FareJpaEntity fare : fares) {
+            domainFares.add(toDomain(fare));
+        }
         return Flight.restore(new FlightId(flight.getId()), new FlightCode(flight.getFlightCode()),
                 new AirportCode(flight.getOriginCode()), new AirportCode(flight.getDestinationCode()),
                 flight.getDepartureTime(), flight.getArrivalTime(), new AircraftId(flight.getAircraftId()),
-                flight.getStatus(), fares.stream().map(this::toDomain).toList());
-    }
-
-    public FareJpaEntity toEntity(Fare fare) {
-        var entity = new FareJpaEntity();
-        entity.setId(fare.getId().value());
-        entity.setFlightId(fare.getFlightId().value());
-        entity.setFareClass(fare.getFareClass());
-        entity.setBasePrice(fare.getBasePrice().amount());
-        entity.setCurrency(fare.getBasePrice().currency().getCurrencyCode());
-        entity.setValidFrom(fare.getValidity().from());
-        entity.setValidTo(fare.getValidity().to());
-        return entity;
+                flight.getStatus(), List.copyOf(domainFares));
     }
 
     public Fare toDomain(FareJpaEntity fare) {

@@ -58,7 +58,9 @@ public final class Flight {
             throw new InvalidDomainValueException("Fares must not be null");
         }
         Flight flight = new Flight(id, code, originCode, destinationCode, departureTime, arrivalTime, aircraftId, status);
-        fares.forEach(flight::attachFare);
+        for (Fare fare : fares) {
+            flight.attachFare(fare);
+        }
         return flight;
     }
 
@@ -111,8 +113,10 @@ public final class Flight {
         if (fare == null || !fare.getFlightId().equals(id)) {
             throw new InvalidDomainValueException("Fare must belong to this flight");
         }
-        if (fares.stream().anyMatch(existing -> existing.getId().equals(fare.getId()))) {
-            throw new InvalidDomainValueException("Fare id already exists");
+        for (Fare existing : fares) {
+            if (existing.getId().equals(fare.getId())) {
+                throw new InvalidDomainValueException("Fare id already exists");
+            }
         }
         ensureNoOverlap(fare, null);
         fares.add(fare);
@@ -146,12 +150,12 @@ public final class Flight {
 
     // Nonoverlapping intervals per class make the current fare unambiguous.
     private void ensureNoOverlap(Fare candidate, FareId excludedId) {
-        boolean overlaps = fares.stream().anyMatch(existing ->
-                (excludedId == null || !existing.getId().equals(excludedId))
-                && existing.getFareClass() == candidate.getFareClass()
-                && existing.getValidity().overlaps(candidate.getValidity()));
-        if (overlaps) {
-            throw new InvalidDomainValueException("Fare validity overlaps another fare in the same class");
+        for (Fare existing : fares) {
+            if ((excludedId == null || !existing.getId().equals(excludedId))
+                    && existing.getFareClass() == candidate.getFareClass()
+                    && existing.getValidity().overlaps(candidate.getValidity())) {
+                throw new InvalidDomainValueException("Fare validity overlaps another fare in the same class");
+            }
         }
     }
 

@@ -14,20 +14,36 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import java.time.Instant;
-import java.util.stream.Collectors;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ErrorResponse> handleCustom(CustomException exception, HttpServletRequest request) {
-        HttpStatus status = switch (exception.getType()) {
-            case VALIDATION -> HttpStatus.BAD_REQUEST;
-            case NOT_FOUND -> HttpStatus.NOT_FOUND;
-            case CONFLICT -> HttpStatus.CONFLICT;
-            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case FORBIDDEN -> HttpStatus.FORBIDDEN;
-            case INTERNAL -> HttpStatus.INTERNAL_SERVER_ERROR;
-        };
+        HttpStatus status;
+        switch (exception.getType()) {
+            case VALIDATION:
+                status = HttpStatus.BAD_REQUEST;
+                break;
+            case NOT_FOUND:
+                status = HttpStatus.NOT_FOUND;
+                break;
+            case CONFLICT:
+                status = HttpStatus.CONFLICT;
+                break;
+            case UNAUTHORIZED:
+                status = HttpStatus.UNAUTHORIZED;
+                break;
+            case FORBIDDEN:
+                status = HttpStatus.FORBIDDEN;
+                break;
+            case INTERNAL:
+                status = HttpStatus.INTERNAL_SERVER_ERROR;
+                break;
+            default:
+                throw new IllegalStateException("Unsupported error type: " + exception.getType());
+        }
         return error(status, exception.getCode(), exception.getMessage(), request);
     }
 
@@ -46,9 +62,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
             MethodArgumentNotValidException exception, HttpServletRequest request) {
-        String message = exception.getBindingResult().getFieldErrors().stream()
-                .map(field -> field.getField() + ": " + field.getDefaultMessage())
-                .distinct().collect(Collectors.joining("; "));
+        Set<String> messages = new LinkedHashSet<>();
+        for (var field : exception.getBindingResult().getFieldErrors()) {
+            messages.add(field.getField() + ": " + field.getDefaultMessage());
+        }
+        String message = String.join("; ", messages);
         return error(HttpStatus.BAD_REQUEST, "REQUEST_VALIDATION_FAILED", message, request);
     }
 

@@ -1,12 +1,12 @@
-package com.group3.flightsearch.api.rest;
+package com.group3.flightsearch.infrastructure.client.rest;
 
 import com.group3.flightsearch.application.port.in.GetFareQuoteUseCase;
 import com.group3.flightsearch.application.port.in.SeatAssignmentUseCase;
-import com.group3.flightsearch.api.dto.AssignSeatRequest;
+import com.group3.flightsearch.infrastructure.client.dto.AssignSeatRequest;
+import com.group3.flightsearch.infrastructure.client.dto.FareQuoteRequest;
+import com.group3.flightsearch.infrastructure.client.dto.FareQuoteResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import com.group3.flightsearch.application.query.FareQuoteView;
-import com.group3.flightsearch.domain.model.FareClass;
 import com.group3.flightsearch.infrastructure.security.InternalApiKeyValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,13 +21,12 @@ public class InternalFlightController {
     private final SeatAssignmentUseCase seatAssignments;
 
     @GetMapping("/{flightId}/fare-quote")
-    public FareQuoteView getQuote(
+    public FareQuoteResponse getQuote(
             @PathVariable("flightId") UUID flightId,
-            @RequestParam("fareClass") FareClass fareClass,
-            @RequestParam("quantity") int quantity,
+            @Valid @ModelAttribute FareQuoteRequest request,
             @RequestHeader(name = "X-Internal-Api-Key", required = false) String apiKey) {
         internalApiKeyValidator.validate(apiKey);
-        return useCase.getQuote(flightId, fareClass, quantity);
+        return FareQuoteResponse.from(useCase.getQuote(flightId, request.fareClass(), request.quantity()));
     }
 
     @PutMapping("/{flightId}/seat-assignments/{ticketId}")

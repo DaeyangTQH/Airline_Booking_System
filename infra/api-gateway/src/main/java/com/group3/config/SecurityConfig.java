@@ -61,9 +61,8 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/pay").permitAll()
                         .pathMatchers("/api/v1/payments/vnpay/**").permitAll()
                         .pathMatchers(HttpMethod.GET,
-                                "/api/v1/airports", "/api/v1/airports/**",
-                                "/api/v1/flights", "/api/v1/flights/**",
-                                "/api/v1/seats/**").permitAll()
+                                "/api/v1/airports",
+                                "/api/v1/flights", "/api/v1/flights/**").permitAll()
                         .pathMatchers("/actuator/health", "/actuator/info").permitAll()
                         .anyExchange().authenticated()
                 )

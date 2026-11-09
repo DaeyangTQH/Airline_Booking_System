@@ -7,6 +7,9 @@ import com.group3.flightsearch.domain.model.FlightStatus;
 import com.group3.flightsearch.infrastructure.persistence.entity.*;
 import com.group3.flightsearch.infrastructure.persistence.repository.*;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -14,7 +17,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -26,13 +28,78 @@ public class FlightQueryAdapter implements FlightQueryPort {
 
     @Override
     public Optional<FlightView> findById(UUID id) {
-        return flights.findById(id).map(flight -> view(flight,
+        var flight = flights.findById(id);
+        if (flight.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(view(flight.get(),
                 fares.findAllByFlightIdOrderByFareClassAscValidFromAsc(id), availability.findByFlight(id)));
     }
 
     @Override
     public List<FlightView> search(FlightSearchQuery search) {
-        Specification<FlightJpaEntity> specification = (root, query, cb) -> {
+        Specification<FlightJpaEntity> specification = new SearchSpecification(search);
+        var rows = flights.findAll(specification, PageRequest.of(search.page(), search.size(),
+                Sort.by("departureTime", "id"))).getContent();
+        if (rows.isEmpty()) return List.of();
+
+        List<UUID> flightIds = new ArrayList<>();
+        for (FlightJpaEntity flight : rows) {
+            flightIds.add(flight.getId());
+        }
+        Map<UUID, List<FlightAvailabilityView>> byAvailability = new HashMap<>();
+        for (FlightAvailabilityView capacity : availability.findByFlights(flightIds)) {
+            List<FlightAvailabilityView> capacities = byAvailability.get(capacity.flightId());
+            if (capacities == null) {
+                capacities = new ArrayList<>();
+                byAvailability.put(capacity.flightId(), capacities);
+            }
+            capacities.add(capacity);
+        }
+        Map<UUID, List<FareJpaEntity>> byFlight = new HashMap<>();
+        for (FareJpaEntity fare : fares.findAllByFlightIdInOrderByFareClassAscValidFromAsc(flightIds)) {
+            if (fare.getValidFrom().isAfter(search.pricedAt()) || !fare.getValidTo().isAfter(search.pricedAt())) {
+                continue;
+            }
+            if (search.fareClass() != null && fare.getFareClass() != search.fareClass()) {
+                continue;
+            }
+            if (!hasEnoughSeats(fare, byAvailability.getOrDefault(fare.getFlightId(), List.of()), search.quantity())) {
+                continue;
+            }
+            List<FareJpaEntity> flightFares = byFlight.get(fare.getFlightId());
+            if (flightFares == null) {
+                flightFares = new ArrayList<>();
+                byFlight.put(fare.getFlightId(), flightFares);
+            }
+            flightFares.add(fare);
+        }
+        List<FlightView> result = new ArrayList<>();
+        for (FlightJpaEntity flight : rows) {
+            result.add(view(flight, byFlight.getOrDefault(flight.getId(), List.of()),
+                    byAvailability.getOrDefault(flight.getId(), List.of())));
+        }
+        return List.copyOf(result);
+    }
+
+    private boolean hasEnoughSeats(FareJpaEntity fare, List<FlightAvailabilityView> capacities, int quantity) {
+        for (FlightAvailabilityView capacity : capacities) {
+            if (capacity.fareClass() == fare.getFareClass() && capacity.availableSeats() >= quantity) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static final class SearchSpecification implements Specification<FlightJpaEntity> {
+        private final FlightSearchQuery search;
+
+        private SearchSpecification(FlightSearchQuery search) {
+            this.search = search;
+        }
+
+        @Override
+        public Predicate toPredicate(Root<FlightJpaEntity> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
             var predicates = new ArrayList<Predicate>();
             predicates.add(root.get("status").in(FlightStatus.SCHEDULED, FlightStatus.DELAYED));
             predicates.add(cb.greaterThan(root.get("departureTime"), search.pricedAt()));
@@ -55,34 +122,22 @@ public class FlightQueryAdapter implements FlightQueryPort {
             pricePredicates.add(cb.equal(capacity.get("flightId"), fare.get("flightId")));
             pricePredicates.add(cb.equal(capacity.get("fareClass"), fare.get("fareClass")));
             pricePredicates.add(cb.greaterThanOrEqualTo(capacity.get("availableSeats"), search.quantity()));
-            priceQuery.select(fare.get("id")).where(pricePredicates.toArray(Predicate[]::new));
+            priceQuery.select(fare.get("id")).where(pricePredicates.toArray(new Predicate[0]));
             predicates.add(cb.exists(priceQuery));
-            return cb.and(predicates.toArray(Predicate[]::new));
-        };
-        var rows = flights.findAll(specification, PageRequest.of(search.page(), search.size(),
-                Sort.by("departureTime", "id"))).getContent();
-        if (rows.isEmpty()) return List.of();
-        var byAvailability = availability.findByFlights(rows.stream().map(FlightJpaEntity::getId).toList())
-                .stream().collect(Collectors.groupingBy(FlightAvailabilityView::flightId));
-        var byFlight = fares.findAllByFlightIdInOrderByFareClassAscValidFromAsc(
-                rows.stream().map(FlightJpaEntity::getId).toList()).stream()
-                .filter(fare -> !fare.getValidFrom().isAfter(search.pricedAt()) && fare.getValidTo().isAfter(search.pricedAt()))
-                .filter(fare -> search.fareClass() == null || fare.getFareClass() == search.fareClass())
-                .filter(fare -> byAvailability.getOrDefault(fare.getFlightId(), List.of()).stream()
-                        .anyMatch(capacity -> capacity.fareClass() == fare.getFareClass()
-                                && capacity.availableSeats() >= search.quantity()))
-                .collect(Collectors.groupingBy(FareJpaEntity::getFlightId));
-        return rows.stream().map(flight -> view(flight, byFlight.getOrDefault(flight.getId(), List.of()),
-                byAvailability.getOrDefault(flight.getId(), List.of()))).toList();
+            return cb.and(predicates.toArray(new Predicate[0]));
+        }
     }
 
     private FlightView view(FlightJpaEntity flight, List<FareJpaEntity> prices,
                             List<FlightAvailabilityView> capacity) {
-        var fareViews = prices.stream().map(fare -> new FareView(fare.getId(), fare.getFlightId(),
-                fare.getFareClass(), fare.getBasePrice(), fare.getCurrency(), fare.getValidFrom(), fare.getValidTo())).toList();
+        List<FareView> fareViews = new ArrayList<>();
+        for (FareJpaEntity fare : prices) {
+            fareViews.add(new FareView(fare.getId(), fare.getFlightId(), fare.getFareClass(),
+                    fare.getBasePrice(), fare.getCurrency(), fare.getValidFrom(), fare.getValidTo()));
+        }
         return new FlightView(flight.getId(), flight.getFlightCode(), flight.getOriginCode(),
                 flight.getOrigin().getCity(), flight.getDestinationCode(), flight.getDestination().getCity(),
                 flight.getDepartureTime(), flight.getArrivalTime(), flight.getAircraftId(),
-                flight.getAircraft().getModel(), flight.getStatus(), fareViews, capacity);
+                flight.getAircraft().getModel(), flight.getStatus(), List.copyOf(fareViews), capacity);
     }
 }
