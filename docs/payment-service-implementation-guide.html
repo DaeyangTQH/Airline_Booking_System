@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Payment Service Implementation Guide - Airline Booking System</title>
+<style>
+:root{
+  --bg:#f7f9fc; --card:#ffffff; --ink:#1f2937; --muted:#64748b;
+  --line:#d9e1ec; --brand:#0f4c81; --brand2:#1d6fa5;
+  --accent:#e8f2fb; --ok:#146c43; --warn:#9a6700; --bad:#b42318;
+  --code:#0b1220;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;line-height:1.62}
+.wrapper{max-width:1180px;margin:0 auto;padding:0 24px 64px}
+.hero{background:linear-gradient(135deg,#0d3f6e,#1e6fa3);color:white;padding:56px 0 48px;margin-bottom:28px}
+.hero .inner{max-width:1180px;margin:auto;padding:0 24px}
+.hero h1{font-size:40px;line-height:1.15;margin:0 0 12px}
+.hero p{max-width:920px;margin:0;color:#e8f3fb;font-size:18px}
+.badge{display:inline-block;background:#dff0ff;color:#083b66;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
+.toc{position:sticky;top:18px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 4px 14px rgba(15,76,129,.06)}
+.toc h3{margin:0 0 10px;color:var(--brand)}
+.toc a{display:block;color:#334155;text-decoration:none;padding:5px 0;font-size:14px}
+.toc a:hover{color:var(--brand2)}
+main section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;margin-bottom:22px;box-shadow:0 4px 14px rgba(15,76,129,.04)}
+h2{color:var(--brand);margin-top:0;border-bottom:2px solid var(--accent);padding-bottom:10px}
+h3{color:#174f7a;margin-top:26px}
+h4{color:#315d7d;margin-bottom:8px}
+p{margin:8px 0 14px}
+.note,.decision,.warning,.success{border-radius:10px;padding:14px 16px;margin:14px 0}
+.note{background:#f0f7ff;border-left:4px solid var(--brand2)}
+.decision{background:#eefbf4;border-left:4px solid var(--ok)}
+.warning{background:#fff8e6;border-left:4px solid var(--warn)}
+.success{background:#edf9f1;border-left:4px solid var(--ok)}
+code{background:#eef2f7;padding:2px 6px;border-radius:5px;font-family:Consolas,monospace}
+pre{background:var(--code);color:#e5edf7;padding:16px;border-radius:10px;overflow:auto;white-space:pre-wrap;line-height:1.45}
+table{width:100%;border-collapse:collapse;margin:14px 0 22px;font-size:14px}
+th,td{border:1px solid var(--line);padding:10px 11px;vertical-align:top}
+th{background:#edf5fb;color:#164b73;text-align:left}
+tr:nth-child(even) td{background:#fbfdff}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}
+.kpi div{background:#f3f8fc;border:1px solid #d6e5f0;padding:14px;border-radius:10px}
+.kpi b{display:block;color:var(--brand);font-size:18px}
+.footer{color:var(--muted);text-align:center;font-size:13px;margin-top:32px}
+ul,ol{padding-left:22px}
+li{margin:5px 0}
+.phase{border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:16px 0}
+.phase h3{margin-top:0}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef3f8;font-size:12px;margin-right:5px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.toc{position:relative}.kpi{grid-template-columns:1fr 1fr}.hero h1{font-size:31px}}
+</style>
+</head>
+<body>
+<header class="hero">
+<div class="inner">
+<div class="badge">IMPLEMENTATION GUIDE · 1 FILE</div>
+<h1>Payment Service – Airline Booking System</h1>
+<p>Guide triển khai Payment Service. Schema lấy đúng Group Documentation mục 2.1.3. Cổng thanh toán demo là <b>VNPay Sandbox</b> (redirect + IPN), không dùng mock/simulate. Aggregate, API, outbox được bổ sung cho khớp Booking, không thêm cột DB ngoài tài liệu nhóm.</p>
+</div>
+</header>
+<div class="wrapper">
+<div class="grid">
+<aside class="toc">
+<h3>Mục lục</h3>
+<a href="#source">0. Nguồn thiết kế</a>
+<a href="#scope">1. Scope</a>
+<a href="#current">2. Hiện trạng code</a>
+<a href="#context">3. Service Context</a>
+<a href="#flow">4. Business Flow</a>
+<a href="#database">5. Database (locked)</a>
+<a href="#ddd">6. Aggregate / Entity / VO</a>
+<a href="#rules">7. Domain Rules</a>
+<a href="#api">8. API</a>
+<a href="#outbox">9. Outbox &amp; Integration</a>
+<a href="#sequence">10. Sequence</a>
+<a href="#status">11. Status</a>
+<a href="#errors">12. Error Codes</a>
+<a href="#spring">13. Package Structure</a>
+<a href="#plan">14. Thứ tự code</a>
+<a href="#checklist">15. Checklist</a>
+</aside>
+<main>
+
+<section id="source">
+<h2>0. Nguồn thiết kế — không tự bịa schema</h2>
+<div class="decision"><b>Database đã chốt trong Group Doc:</b> <code>payments</code>, <code>refunds</code>, <code>outbox_events</code>. Guide này không thêm <code>version</code>, <code>paid_at</code>, <code>failure_reason</code>, hay đổi <code>create_at</code> thành <code>created_at</code>. Tên cột giữ nguyên tài liệu nhóm để đồng bộ Booking (<code>create_at</code> / <code>update_at</code>).</div>
+<ul>
+<li>Group Documentation – mục <b>2.1.3 Payment Service</b>: 3 bảng.</li>
+<li>Group Documentation – mục <b>2.2.2 Booking</b>: <code>POST /api/v1/bookings/{bookingId}/payment</code> và cancel → refund.</li>
+<li>Code hiện tại: hexagonal folders + class trống trong <code>services/payment-service</code>.</li>
+<li><code>shared/common</code>: <code>CustomException</code>, <code>ErrorType</code>, <code>ErrorResponse</code>.</li>
+</ul>
+<div class="warning">Group Doc chưa viết mục 2.2.3 (aggregate/API Payment). Các enum status, method, event type và endpoint dưới đây là phần design còn thiếu, map 1-1 vào cột String/JSON đã có.</div>
+</section>
+
+<section id="scope">
+<h2>1. Scope &amp; Assumptions</h2>
+<div class="kpi">
+<div><b>payments</b><span>giao dịch thu tiền</span></div>
+<div><b>refunds</b><span>hoàn tiền theo payment</span></div>
+<div><b>outbox_events</b><span>báo Booking sau commit</span></div>
+<div><b>idempotency_key</b><span>chống xử lý trùng</span></div>
+</div>
+<ul>
+<li>Một Booking <code>PENDING</code> khởi tạo payment; Booking không join DB Payment.</li>
+<li><code>booking_id</code> là UUID tham chiếu ngoài, không phải FK xuyên service.</li>
+<li>Số tiền lấy snapshot từ Booking, không tin client.</li>
+<li>Demo: <code>provider = VNPAY</code>, môi trường <b>VNPay Sandbox</b>. User redirect sang cổng sandbox, thanh toán bằng thẻ test VNPay. Không mock status bằng tay.</li>
+<li>Nguồn sự thật hoàn tất giao dịch là <b>IPN</b> (server-to-server). Return URL chỉ để redirect user về app.</li>
+<li>Đồng bộ Booking bằng <b>Transactional Outbox</b> (bảng đã thiết kế), không gọi HTTP Booking trong cùng DB transaction.</li>
+<li>Kafka không bắt buộc. Outbox relay có thể HTTP sang Booking cho demo.</li>
+<li>Local demo IPN cần URL public (ngrok / Cloudflare Tunnel) vì VNPay không gọi được <code>localhost</code>.</li>
+</ul>
+</section>
+
+<section id="current">
+<h2>2. Hiện trạng code</h2>
+<ul>
+<li>Đã có bootstrap, POM (JPA, Web, Feign, Eureka, OpenAPI), port 8084, hexagonal folders.</li>
+<li><code>Payment</code> đang là JPA <code>@Entity</code> trong domain, chỉ có <code>id</code> — phải tách ra persistence.</li>
+<li><code>Money</code>, <code>PaymentRepository</code>, <code>CreatePaymentCommand</code>, <code>CreatePaymentPort</code> còn trống.</li>
+<li>Chưa phụ thuộc <code>shared/common</code>.</li>
+<li>Docker mới tạo <code>booking_db</code>, chưa có <code>payment_db</code>.</li>
+<li>Booking domain đã có <code>confirmPayment()</code>, chưa có callback API.</li>
+</ul>
+</section>
+
+<section id="context">
+<h2>3. Payment trong hệ thống</h2>
+<pre>
+API Gateway
+    |
+    v
+Booking Service  --POST /internal/v1/payments--&gt;  Payment Service
+    ^                                              |
+    |                                              |  tạo VNPay payment URL
+    |                                              v
+    |                                         VNPay Sandbox
+    |                                              |
+    |                                         IPN / Return
+    |                                              |
+    |                                              |  cùng TX: update payment + outbox
+    |                                              v
+    +-- Outbox relay (HTTP hoặc Kafka) --  outbox_events
+</pre>
+<table>
+<tr><th>Nhóm</th><th>Trách nhiệm</th></tr>
+<tr><td>Create payment</td><td>Lưu PENDING, unique theo <code>idempotency_key</code>, build URL VNPay (HMAC SHA512).</td></tr>
+<tr><td>Complete / fail</td><td>Nhận IPN VNPay, verify checksum + amount, ghi outbox <code>PaymentCompleted</code> / <code>PaymentFailed</code>.</td></tr>
+<tr><td>Refund</td><td>Gọi VNPay sandbox refund API khi Booking cancel CONFIRMED.</td></tr>
+<tr><td>Outbox</td><td>Publish sự kiện sau khi local commit thành công.</td></tr>
+</table>
+</section>
+
+<section id="flow">
+<h2>4. Business Flow</h2>
+<pre>
+Booking PENDING
+    |
+    |  POST /api/v1/bookings/{bookingId}/payment
+    v
+Booking gọi Payment: POST /internal/v1/payments
+    (bookingId, amount, currency, method, idempotencyKey)
+    |
+    v
+payments.status = PENDING, provider = VNPAY
+Payment trả paymentUrl
+    |
+    v
+User redirect → VNPay Sandbox (thẻ test)
+    |
+    +-- IPN (source of truth)
+    |     verify vnp_SecureHash + amount
+    |     vnp_ResponseCode = 00 → COMPLETED + outbox PaymentCompleted
+    |     khác 00               → FAILED + outbox PaymentFailed
+    |     relay → Booking confirmPayment() khi SUCCESS → CONFIRMED
+    |
+    +-- Return URL (UX)
+          hiện trang thành công/thất bại; nếu IPN chưa tới, complete idempotent tại đây cũng được
+
+Cancel Booking CONFIRMED
+    |
+    v
+POST /internal/v1/refunds
+    |
+    v
+Gọi VNPay refund sandbox → refunds + outbox RefundCompleted
+    |
+    v
+Booking CANCELLED
+</pre>
+<div class="note"><b>Demo:</b> tài khoản merchant sandbox VNPay + thẻ test trên <code>sandbox.vnpayment.vn</code>. Không có endpoint simulate. IPN local dùng ngrok trỏ về <code>GET /api/v1/payments/vnpay/ipn</code>.</div>
+</section>
+
+<section id="database">
+<h2>5. Database Design — copy từ Group Doc 2.1.3</h2>
+<p>Database riêng: <code>payment_db</code>. Cột dưới đây là schema đã chốt. Không thêm field.</p>
+
+<h3>5.1 Table: payments</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>PK</th><th>FK</th><th>UN</th><th>NN</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>✓</td><td></td><td></td><td>✓</td><td>Unique identifier of the payment</td></tr>
+<tr><td>2</td><td>booking_id</td><td>UUID</td><td></td><td></td><td></td><td>✓</td><td>Identifier of the associated booking (external ref)</td></tr>
+<tr><td>3</td><td>amount</td><td>DECIMAL(15,2)</td><td></td><td></td><td></td><td>✓</td><td>Payment amount</td></tr>
+<tr><td>4</td><td>currency</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Currency used for the payment</td></tr>
+<tr><td>5</td><td>method</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Payment method</td></tr>
+<tr><td>6</td><td>status</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Current payment status</td></tr>
+<tr><td>7</td><td>provider</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Payment service provider</td></tr>
+<tr><td>8</td><td>provider_txn_id</td><td>String</td><td></td><td></td><td></td><td></td><td>Transaction identifier assigned by the payment provider</td></tr>
+<tr><td>9</td><td>idempotency_key</td><td>String</td><td></td><td></td><td>✓</td><td>✓</td><td>Key used to prevent duplicate payment processing</td></tr>
+<tr><td>10</td><td>create_at</td><td>TIMESTAMPTZ</td><td></td><td></td><td></td><td>✓</td><td>Timestamp when the payment was created</td></tr>
+<tr><td>11</td><td>update_at</td><td>TIMESTAMPTZ</td><td></td><td></td><td></td><td>✓</td><td>Timestamp when the payment was last updated</td></tr>
+</table>
+
+<h3>5.2 Table: refunds</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>PK</th><th>FK</th><th>UN</th><th>NN</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>✓</td><td></td><td></td><td>✓</td><td>Unique identifier of the refund</td></tr>
+<tr><td>2</td><td>payment_id</td><td>UUID</td><td></td><td>✓ payments.id</td><td></td><td>✓</td><td>Identifier of the payment associated with the refund</td></tr>
+<tr><td>3</td><td>amount</td><td>DECIMAL(15,2)</td><td></td><td></td><td></td><td>✓</td><td>Amount to be refunded</td></tr>
+<tr><td>4</td><td>currency</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Currency used for the refund</td></tr>
+<tr><td>5</td><td>status</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Current refund status</td></tr>
+<tr><td>6</td><td>idempotency_key</td><td>String</td><td></td><td></td><td>✓</td><td>✓</td><td>Key used to prevent duplicate refund requests</td></tr>
+<tr><td>7</td><td>provider_refund_id</td><td>String</td><td></td><td></td><td></td><td></td><td>Refund identifier assigned by the payment provider</td></tr>
+<tr><td>8</td><td>create_at</td><td>TIMESTAMPTZ</td><td></td><td></td><td></td><td>✓</td><td>Timestamp when the refund was created</td></tr>
+<tr><td>9</td><td>update_at</td><td>TIMESTAMPTZ</td><td></td><td></td><td></td><td>✓</td><td>Timestamp when the refund was last updated</td></tr>
+</table>
+
+<h3>5.3 Table: outbox_events</h3>
+<table>
+<tr><th>#</th><th>Field</th><th>Data Type</th><th>PK</th><th>FK</th><th>UN</th><th>NN</th><th>Description</th></tr>
+<tr><td>1</td><td>id</td><td>UUID</td><td>✓</td><td></td><td></td><td>✓</td><td>Unique identifier of the outbox event</td></tr>
+<tr><td>2</td><td>aggregate_id</td><td>UUID</td><td></td><td></td><td></td><td>✓</td><td>Identifier of the aggregate that generated the event</td></tr>
+<tr><td>3</td><td>type</td><td>String</td><td></td><td></td><td></td><td>✓</td><td>Type of event, e.g. PaymentCompleted</td></tr>
+<tr><td>4</td><td>payload</td><td>JSON</td><td></td><td></td><td></td><td>✓</td><td>Event payload containing relevant data</td></tr>
+<tr><td>5</td><td>published</td><td>BOOLEAN</td><td></td><td></td><td></td><td>✓</td><td>Indicates whether the event has been published</td></tr>
+<tr><td>6</td><td>published_at</td><td>TIMESTAMPTZ</td><td></td><td></td><td></td><td></td><td>Timestamp when the event was successfully published</td></tr>
+<tr><td>7</td><td>create_at</td><td>TIMESTAMPTZ</td><td></td><td></td><td></td><td>✓</td><td>Timestamp when the event was created</td></tr>
+</table>
+
+<h3>5.4 Giá trị String map vào cột có sẵn</h3>
+<table>
+<tr><th>Cột</th><th>Giá trị dùng khi code</th></tr>
+<tr><td>payments.method</td><td><code>VNPAY</code> (user chọn thẻ/QR trên trang sandbox)</td></tr>
+<tr><td>payments.status</td><td><code>PENDING</code> | <code>COMPLETED</code> | <code>FAILED</code> | <code>CANCELLED</code></td></tr>
+<tr><td>payments.provider</td><td><code>VNPAY</code></td></tr>
+<tr><td>payments.provider_txn_id</td><td>Điền <code>vnp_TransactionNo</code> khi IPN/return thành công</td></tr>
+<tr><td>refunds.status</td><td><code>PENDING</code> | <code>COMPLETED</code> | <code>FAILED</code></td></tr>
+<tr><td>outbox_events.type</td><td><code>PaymentCompleted</code> | <code>PaymentFailed</code> | <code>RefundCompleted</code> | <code>RefundFailed</code></td></tr>
+</table>
+<div class="decision"><b>COMPLETED</b> (không dùng SUCCEEDED/PAID) để khớp ví dụ Group Doc: event <code>PaymentCompleted</code>.</div>
+
+<h3>5.5 Index — không đổi cột, chỉ hỗ trợ query</h3>
+<pre>
+UNIQUE  ux_payments_idempotency_key   ON payments(idempotency_key);
+INDEX   ix_payments_booking_id        ON payments(booking_id);
+INDEX   ix_payments_status            ON payments(status);
+
+UNIQUE  ux_refunds_idempotency_key    ON refunds(idempotency_key);
+INDEX   ix_refunds_payment_id         ON refunds(payment_id);
+
+INDEX   ix_outbox_unpublished         ON outbox_events(published, create_at);
+</pre>
+<div class="note"><code>booking_id</code> trong Group Doc <b>không unique</b>. Idempotency dựa vào <code>idempotency_key</code>. Thanh toán lại sau FAILED = payment mới + key mới. Domain vẫn chặn tạo payment mới nếu booking đã có payment <code>COMPLETED</code>.</div>
+</section>
+
+<section id="ddd">
+<h2>6. Aggregates, Entities, Value Objects</h2>
+<p>Bổ sung mục 2.2.3 mà Group Doc chưa viết. Outbox không phải domain entity — là infrastructure.</p>
+<pre>
+Payment Aggregate
+================================================
+Payment                         &lt;&lt; Aggregate Root &gt;&gt;
+│
+├── PaymentId                   &lt;&lt; VO &gt;&gt;
+├── BookingId                   &lt;&lt; VO, external &gt;&gt;
+├── Money                       &lt;&lt; VO amount+currency &gt;&gt;
+├── PaymentMethod               &lt;&lt; Enum &gt;&gt;
+├── PaymentStatus               &lt;&lt; Enum &gt;&gt;
+├── PaymentProvider             &lt;&lt; Enum &gt;&gt;
+├── ProviderTxnId               &lt;&lt; VO, optional &gt;&gt;
+├── IdempotencyKey              &lt;&lt; VO &gt;&gt;
+│
+└── Refund                      &lt;&lt; Entity &gt;&gt;
+       ├── RefundId
+       ├── Money
+       ├── RefundStatus
+       ├── IdempotencyKey
+       └── ProviderRefundId     optional
+</pre>
+
+<h3>6.1 Aggregate Root: Payment</h3>
+<table>
+<tr><th>Attribute</th><th>Type</th><th>Cột DB</th></tr>
+<tr><td>id</td><td>PaymentId</td><td>id</td></tr>
+<tr><td>bookingId</td><td>BookingId</td><td>booking_id</td></tr>
+<tr><td>amount</td><td>Money</td><td>amount + currency</td></tr>
+<tr><td>method</td><td>PaymentMethod</td><td>method</td></tr>
+<tr><td>status</td><td>PaymentStatus</td><td>status</td></tr>
+<tr><td>provider</td><td>PaymentProvider</td><td>provider</td></tr>
+<tr><td>providerTxnId</td><td>ProviderTxnId</td><td>provider_txn_id</td></tr>
+<tr><td>idempotencyKey</td><td>IdempotencyKey</td><td>idempotency_key</td></tr>
+<tr><td>refunds</td><td>List&lt;Refund&gt;</td><td>bảng refunds</td></tr>
+</table>
+<pre>
+Payment.create(bookingId, money, method, provider, idempotencyKey)
+payment.complete(providerTxnId)     // PENDING → COMPLETED
+payment.fail()                      // PENDING → FAILED
+payment.cancel()                    // PENDING → CANCELLED
+payment.refund(money, idempotencyKey)
+</pre>
+<div class="warning">Domain <code>Payment</code> là POJO. JPA <code>PaymentEntity</code> nằm ở <code>infrastructure.persistence.entity</code>. Source hiện tại gắn <code>@Entity</code> trong domain — phải sửa ở Giai đoạn 1.</div>
+
+<h3>6.2 Entity: Refund</h3>
+<p>Có identity riêng, nhưng không tồn tại độc lập khỏi Payment. Mọi refund đi qua Payment aggregate.</p>
+<table>
+<tr><th>Attribute</th><th>Type</th><th>Cột DB</th></tr>
+<tr><td>id</td><td>RefundId</td><td>id</td></tr>
+<tr><td>amount</td><td>Money</td><td>amount + currency</td></tr>
+<tr><td>status</td><td>RefundStatus</td><td>status</td></tr>
+<tr><td>idempotencyKey</td><td>IdempotencyKey</td><td>idempotency_key</td></tr>
+<tr><td>providerRefundId</td><td>ProviderRefundId</td><td>provider_refund_id</td></tr>
+</table>
+<p>Refund gọi API hoàn tiền sandbox VNPay. <code>provider_refund_id</code> lưu mã refund VNPay trả về. Không đánh COMPLETED nếu VNPay refund fail.</p>
+
+<h3>6.3 Value Objects</h3>
+<table>
+<tr><th>VO</th><th>Representation</th><th>Validation</th></tr>
+<tr><td>PaymentId / RefundId / BookingId</td><td>UUID</td><td>not null</td></tr>
+<tr><td>Money</td><td>amount + CurrencyCode</td><td>amount &gt; 0</td></tr>
+<tr><td>CurrencyCode</td><td>String</td><td>VND / USD</td></tr>
+<tr><td>IdempotencyKey</td><td>String</td><td>not blank; unique ở DB</td></tr>
+<tr><td>ProviderTxnId</td><td>String</td><td>optional đến khi COMPLETED</td></tr>
+</table>
+<div class="note"><b>Money không đưa vào shared/common.</b> Common chỉ dùng cho lỗi. Booking và Payment mỗi bên giữ VO riêng.</div>
+</section>
+
+<section id="rules">
+<h2>7. Domain Rules</h2>
+<table>
+<tr><th>#</th><th>Rule</th></tr>
+<tr><td>PR-01</td><td>Payment mới luôn <code>PENDING</code>.</td></tr>
+<tr><td>PR-02</td><td><code>amount &gt; 0</code>, currency và method bắt buộc.</td></tr>
+<tr><td>PR-03</td><td>Cùng <code>idempotency_key</code> không tạo payment thứ hai — trả record cũ.</td></tr>
+<tr><td>PR-04</td><td>Booking đã có payment <code>COMPLETED</code> thì không tạo payment mới (kể cả key khác).</td></tr>
+<tr><td>PR-05</td><td><code>complete()</code> lần 2 trên payment đã COMPLETED là no-op.</td></tr>
+<tr><td>PR-06</td><td>Không <code>FAILED | CANCELLED → COMPLETED</code> trên cùng record.</td></tr>
+<tr><td>PR-07</td><td>Refund chỉ khi payment <code>COMPLETED</code>. Currency khớp. Tổng refund ≤ amount.</td></tr>
+<tr><td>PR-08</td><td>Cùng <code>refunds.idempotency_key</code> không tạo refund trùng.</td></tr>
+<tr><td>PR-09</td><td>Đổi status COMPLETED/FAILED/refund xong thì ghi outbox <b>trong cùng local TX</b>.</td></tr>
+<tr><td>PR-10</td><td>Không gọi Booking/HTTP bên trong transaction DB.</td></tr>
+<tr><td>PR-11</td><td>Chỉ <code>complete()</code> / <code>fail()</code> sau khi verify <code>vnp_SecureHash</code> hợp lệ.</td></tr>
+<tr><td>PR-12</td><td><code>vnp_Amount</code> (đã chia 100) phải khớp <code>payments.amount</code>; sai amount → không complete.</td></tr>
+<tr><td>PR-13</td><td>IPN và Return URL có thể tới cả hai: <code>complete()</code> idempotent, chỉ ghi outbox lần đầu.</td></tr>
+</table>
+</section>
+
+<section id="api">
+<h2>8. API Definition</h2>
+<p>Client không gọi Payment trực tiếp cho happy path. Booking là facade: <code>POST /api/v1/bookings/{bookingId}/payment</code>.</p>
+
+<h3>8.1 Internal — Booking → Payment</h3>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+<tr><td>POST</td><td>/internal/v1/payments</td><td>Tạo payment + trả <code>paymentUrl</code> VNPay</td></tr>
+<tr><td>GET</td><td>/internal/v1/payments/{paymentId}</td><td>Chi tiết</td></tr>
+<tr><td>GET</td><td>/internal/v1/payments/by-booking/{bookingId}</td><td>Danh sách theo booking</td></tr>
+<tr><td>POST</td><td>/internal/v1/payments/{paymentId}/cancel</td><td>Hủy khi booking còn PENDING</td></tr>
+<tr><td>POST</td><td>/internal/v1/refunds</td><td>Hoàn tiền qua VNPay sandbox</td></tr>
+</table>
+
+<h3>8.2 Public — VNPay gọi Payment</h3>
+<table>
+<tr><th>Method</th><th>Endpoint</th><th>Purpose</th></tr>
+<tr><td>GET</td><td>/api/v1/payments/vnpay/return</td><td>Return URL: browser redirect sau khi thanh toán (UX).</td></tr>
+<tr><td>GET</td><td>/api/v1/payments/vnpay/ipn</td><td>IPN: server-to-server, nguồn sự thật complete/fail.</td></tr>
+</table>
+<div class="warning">Hai endpoint VNPay phải public (gateway hoặc tunnel). Verify checksum trước mọi đổi status. IPN trả đúng format VNPay (<code>RspCode</code> / <code>Message</code>) để sandbox không gửi lại vô hạn sai.</div>
+
+<h4>POST /internal/v1/payments</h4>
+<pre>
+Request
+{
+  "bookingId": "uuid",
+  "amount": 3000000,
+  "currency": "VND",
+  "method": "VNPAY",
+  "idempotencyKey": "booking-{bookingId}-pay-1"
+}
+
+Response 201 / 200 (trùng key)
+{
+  "paymentId": "uuid",
+  "bookingId": "uuid",
+  "status": "PENDING",
+  "amount": 3000000,
+  "currency": "VND",
+  "method": "VNPAY",
+  "provider": "VNPAY",
+  "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?..."
+}
+</pre>
+<p>Frontend/Booking nhận <code>paymentUrl</code> rồi redirect user. Trùng <code>idempotency_key</code> khi vẫn PENDING: trả cùng payment + build lại URL (hoặc URL cũ nếu còn hạn).</p>
+
+<h4>VNPay IPN / Return — map vào schema có sẵn</h4>
+<pre>
+vnp_TxnRef          → payments.id  (hoặc mã merchant gắn với paymentId)
+vnp_TransactionNo   → payments.provider_txn_id
+vnp_Amount / 100    → so với payments.amount
+vnp_ResponseCode    → 00 = complete(), khác = fail()
+vnp_SecureHash      → HMAC SHA512 với HashSecret sandbox
+</pre>
+<p>Currency demo: <b>VND</b> (VNPay sandbox). Amount gửi VNPay = <code>amount × 100</code>.</p>
+
+<h4>POST /internal/v1/refunds</h4>
+<pre>
+Request
+{
+  "paymentId": "uuid",
+  "amount": 3000000,
+  "currency": "VND",
+  "idempotencyKey": "booking-{bookingId}-refund-1"
+}
+</pre>
+
+<h3>8.3 Outbox payload → Booking nhận</h3>
+<p>Khớp contract Booking Guide: callback payment-result. Relay đọc outbox rồi gọi:</p>
+<pre>
+POST /internal/v1/bookings/{bookingId}/payment-result
+
+{
+  "paymentId": "uuid",
+  "result": "SUCCESS",          // map từ PaymentCompleted
+  "amount": 3000000,
+  "currency": "VND"
+}
+
+result = SUCCESS | FAILED
+</pre>
+<p>RefundCompleted: Booking tự cancel sau khi gọi refund, hoặc nhận event riêng nếu nhóm chốt thêm. MVP: Booking gọi refund rồi tự <code>cancel()</code> khi refund COMPLETED đồng bộ trong response; outbox vẫn ghi để retry nếu sau này tách async.</p>
+</section>
+
+<section id="outbox">
+<h2>9. Outbox &amp; Integration</h2>
+<div class="decision"><b>Vì sao có outbox:</b> Group Doc đã thiết kế bảng này. Dùng để không mất event khi Payment đã COMPLETED mà gọi Booking fail.</div>
+<pre>
+1. VNPay IPN (vnp_ResponseCode = 00, hash + amount OK)
+2. BEGIN TX
+     update payments set status = COMPLETED, provider_txn_id = vnp_TransactionNo
+     insert outbox_events (
+       aggregate_id = payment.id,
+       type = 'PaymentCompleted',
+       payload = {...},
+       published = false
+     )
+3. COMMIT
+4. OutboxPublisher (scheduler ~1s)
+     select where published = false
+     HTTP POST Booking payment-result
+     set published = true, published_at = now()
+</pre>
+<table>
+<tr><th>type</th><th>aggregate_id</th><th>payload tối thiểu</th></tr>
+<tr><td>PaymentCompleted</td><td>payment.id</td><td>paymentId, bookingId, amount, currency</td></tr>
+<tr><td>PaymentFailed</td><td>payment.id</td><td>paymentId, bookingId</td></tr>
+<tr><td>RefundCompleted</td><td>payment.id</td><td>refundId, paymentId, bookingId, amount, currency</td></tr>
+<tr><td>RefundFailed</td><td>payment.id</td><td>refundId, paymentId, bookingId</td></tr>
+</table>
+<div class="warning">Nếu HTTP Booking fail: <code>published</code> vẫn false, scheduler gửi lại. Booking <code>confirmPayment()</code> phải idempotent (đã no-op khi CONFIRMED).</div>
+<p>Port: <code>BookingCallbackPort</code>. Adapter: Feign. Local URL <code>http://localhost:{bookingPort}</code> vì chưa có Eureka server.</p>
+</section>
+
+<section id="sequence">
+<h2>10. Sequence</h2>
+<h3>10.1 Create + VNPay complete</h3>
+<pre>
+Client → Booking POST /bookings/{id}/payment
+       → Payment POST /internal/v1/payments
+            CreatePaymentPort (class đã có, đang trống)
+            → nếu trùng idempotency_key: trả payment cũ
+            → Payment.create(..., provider=VNPAY)
+            → VnPayGatewayPort.buildPaymentUrl(...)
+       ← paymentId + paymentUrl
+
+Client redirect → sandbox.vnpayment.vn
+User thanh toán thẻ test
+
+VNPay → GET /api/v1/payments/vnpay/ipn
+            verify hash + amount
+            complete(vnp_TransactionNo) + insert outbox   // 1 TX
+            respond RspCode=00
+       relay → Booking payment-result SUCCESS
+            booking.confirmPayment()
+            Booking = CONFIRMED
+
+VNPay → GET /api/v1/payments/vnpay/return
+            cùng complete() idempotent nếu IPN chưa tới
+            redirect UX thành công/thất bại
+</pre>
+<h3>10.2 Cancel confirmed</h3>
+<pre>
+Client → Booking POST /bookings/{id}/cancel
+       → Payment POST /internal/v1/refunds
+            VnPayGatewayPort.refund(...)
+            payment.refund(...) + outbox RefundCompleted
+       ← refund COMPLETED
+       → booking.cancel()
+</pre>
+</section>
+
+<section id="status">
+<h2>11. Status</h2>
+<pre>
+PENDING --VNPay IPN/Return 00--&gt; COMPLETED --refund VNPay--&gt; (payment giữ COMPLETED;
+   |                                                          refunds.status = COMPLETED)
+   +--VNPay IPN/Return ≠ 00--&gt; FAILED
+   +--cancel/expire----------&gt; CANCELLED
+</pre>
+<table>
+<tr><th>From</th><th>Action</th><th>To</th><th>Allowed</th></tr>
+<tr><td>PENDING</td><td>VNPay <code>vnp_ResponseCode = 00</code></td><td>COMPLETED</td><td>Yes</td></tr>
+<tr><td>PENDING</td><td>VNPay response khác 00</td><td>FAILED</td><td>Yes</td></tr>
+<tr><td>PENDING</td><td>cancel</td><td>CANCELLED</td><td>Yes</td></tr>
+<tr><td>COMPLETED</td><td>IPN/Return 00 lần 2</td><td>COMPLETED</td><td>Idempotent</td></tr>
+<tr><td>FAILED / CANCELLED</td><td>complete</td><td>—</td><td>No</td></tr>
+<tr><td>COMPLETED</td><td>VNPay refund</td><td>COMPLETED + refund row</td><td>Yes</td></tr>
+</table>
+<p>Payment <b>không</b> đổi sang REFUNDED vì Group Doc không có status đó trên <code>payments</code>. Trạng thái hoàn nằm ở <code>refunds.status</code>.</p>
+</section>
+
+<section id="errors">
+<h2>12. Error Codes — dùng shared/common</h2>
+<p>Gắn <code>com.group3:common</code>. Exception domain extends <code>CustomException</code>. Handler copy pattern Booking, body <code>ErrorResponse</code>.</p>
+<table>
+<tr><th>Code</th><th>ErrorType</th><th>HTTP</th><th>Meaning</th></tr>
+<tr><td>INVALID_DOMAIN_VALUE</td><td>VALIDATION</td><td>400</td><td>amount/currency/method sai</td></tr>
+<tr><td>VALIDATION_ERROR</td><td>VALIDATION</td><td>400</td><td>Bean validation</td></tr>
+<tr><td>PAYMENT_NOT_FOUND</td><td>NOT_FOUND</td><td>404</td><td>Không có payment</td></tr>
+<tr><td>INVALID_PAYMENT_STATE</td><td>CONFLICT</td><td>409</td><td>Transition không hợp lệ</td></tr>
+<tr><td>PAYMENT_ALREADY_COMPLETED</td><td>CONFLICT</td><td>409</td><td>Booking đã thanh toán</td></tr>
+<tr><td>DUPLICATE_IDEMPOTENCY_KEY</td><td>CONFLICT</td><td>409</td><td>Race unique key; map về payment cũ nếu cùng request</td></tr>
+<tr><td>REFUND_NOT_ALLOWED</td><td>CONFLICT</td><td>409</td><td>Chưa COMPLETED / vượt amount</td></tr>
+<tr><td>VNPAY_INVALID_SIGNATURE</td><td>VALIDATION</td><td>400</td><td>Sai <code>vnp_SecureHash</code></td></tr>
+<tr><td>VNPAY_AMOUNT_MISMATCH</td><td>CONFLICT</td><td>409</td><td>Amount IPN không khớp payment</td></tr>
+</table>
+<pre>
+{
+  "code": "INVALID_PAYMENT_STATE",
+  "message": "Cannot complete a cancelled payment",
+  "timestamp": "2026-11-01T16:05:00Z",
+  "path": "/api/v1/payments/vnpay/ipn"
+}
+</pre>
+</section>
+
+<section id="spring">
+<h2>13. Package — bám folder đang có</h2>
+<pre>
+com.group3
+  PaymentServiceApplication
+
+  domain/
+    aggregate/     Payment, PaymentStatus, PaymentMethod, PaymentProvider, Refund, RefundStatus
+    vo/            PaymentId, BookingId, Money, CurrencyCode, IdempotencyKey, ProviderTxnId
+    exception/     extends CustomException
+    repository/    PaymentRepository   (interface)
+
+  application/
+    command/       CreatePaymentCommand (đã có), HandleVnPayCallbackCommand, RefundPaymentCommand
+    port/in/       CreatePaymentPort (đã có), HandleVnPayCallbackPort, RefundPaymentPort, GetPaymentPort
+    port/out/      PaymentPersistencePort, OutboxPort, BookingCallbackPort, VnPayGatewayPort
+    service/       CreatePaymentService, HandleVnPayCallbackService, RefundPaymentService
+                   OutboxPublisherService
+
+  api/
+    rest/          InternalPaymentController, InternalRefundController, VnPayCallbackController
+    dto/ mapper/ exception/GlobalExceptionHandler
+
+  infrastructure/
+    persistence/entity/     PaymentEntity, RefundEntity, OutboxEventEntity
+    persistence/mapper/
+    persistence/repository/ Spring Data
+    persistence/adapter/    PaymentPersistenceAdapter, OutboxAdapter
+    adapter/                BookingFeignClient, BookingCallbackAdapter, VnPayGatewayAdapter
+    config/                 VnPayProperties
+</pre>
+<pre>
+Controller → Application service → Domain
+                              → Out port
+                                   ↑
+                            Infrastructure
+</pre>
+</section>
+
+<section id="plan">
+<h2>14. Thứ tự code — đơn giản → khó</h2>
+
+<div class="phase">
+<h3>Giai đoạn 0 — Nền tảng</h3>
+<ul>
+<li>Dependency <code>com.group3:common</code>.</li>
+<li><code>infra/postgres/init/02-create-payment-db.sql</code> → <code>CREATE DATABASE payment_db;</code></li>
+<li>Giữ PostgreSQL, <code>ddl-auto: update</code> như Booking hiện tại.</li>
+<li>Env sandbox (không commit secret): <code>VNPAY_TMN_CODE</code>, <code>VNPAY_HASH_SECRET</code>, <code>VNPAY_PAY_URL</code>, <code>VNPAY_RETURN_URL</code>, <code>VNPAY_IPN_URL</code>, <code>VNPAY_API_URL</code> (refund/query).</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Giai đoạn 1 — Domain + unit test</h3>
+<ul>
+<li>Gỡ <code>@Entity</code> khỏi domain Payment.</li>
+<li>VO + enum + exception common.</li>
+<li><code>create / complete / fail / cancel / refund</code>.</li>
+<li>Test PR-01 … PR-08. Chưa Spring.</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Giai đoạn 2 — Persistence đúng 3 bảng</h3>
+<ul>
+<li>Entity map đúng tên cột Group Doc, kể cả <code>create_at</code>.</li>
+<li>Adapter load Payment kèm refunds.</li>
+<li>OutboxEntity insert cùng TX khi complete/fail/refund.</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Giai đoạn 3 — API create/get + handler</h3>
+<ul>
+<li>Implement <code>CreatePaymentPort</code> / <code>CreatePaymentCommand</code> đang trống.</li>
+<li>Create xong gọi <code>VnPayGatewayPort</code> và trả <code>paymentUrl</code>.</li>
+<li>Idempotency: trùng key → 200 payment cũ + URL.</li>
+<li><code>GlobalExceptionHandler</code> dùng <code>ErrorResponse</code>.</li>
+</ul>
+<pre>POST /internal/v1/payments
+GET  /internal/v1/payments/{id}
+GET  /internal/v1/payments/by-booking/{bookingId}</pre>
+</div>
+
+<div class="phase">
+<h3>Giai đoạn 4 — VNPay Sandbox</h3>
+<pre>GET /api/v1/payments/vnpay/return
+GET /api/v1/payments/vnpay/ipn</pre>
+<ul>
+<li><code>VnPayGatewayAdapter</code>: build URL, HMAC SHA512, amount × 100, <code>vnp_TxnRef</code>.</li>
+<li>IPN verify hash + amount rồi <code>complete()</code> / <code>fail()</code> + outbox cùng TX.</li>
+<li>Return URL idempotent, dùng cho UX.</li>
+<li>Demo local: ngrok → IPN URL public.</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Giai đoạn 5 — Outbox relay + Booking</h3>
+<ul>
+<li>Scheduler publish unpublished events.</li>
+<li>Feign <code>BookingCallbackPort</code>.</li>
+<li>Cần Booking implement <code>POST /internal/v1/bookings/{id}/payment-result</code>.</li>
+</ul>
+</div>
+
+<div class="phase">
+<h3>Giai đoạn 6 — Refund + cancel</h3>
+<pre>POST /internal/v1/refunds
+POST /internal/v1/payments/{id}/cancel</pre>
+<p>Refund gọi API sandbox VNPay, lưu <code>provider_refund_id</code>. Khớp Booking cancel CONFIRMED.</p>
+</div>
+
+<table>
+<tr><th>Milestone</th><th>Demo</th></tr>
+<tr><td>M1 Domain</td><td>Unit test xanh</td></tr>
+<tr><td>M2 Persistence</td><td>3 bảng trong payment_db</td></tr>
+<tr><td>M3 Create API</td><td>Idempotency key trùng trả cùng id</td></tr>
+<tr><td>M4 VNPay</td><td>Redirect sandbox, IPN COMPLETED, có dòng outbox unpublished</td></tr>
+<tr><td>M5 Relay</td><td>Booking CONFIRMED</td></tr>
+<tr><td>M6 Refund</td><td>Cancel booking đã trả tiền</td></tr>
+</table>
+<p><b>Ước tính:</b> M1–M4 khoảng 4–6 ngày, không chờ team khác. M5–M6 phụ thuộc Booking.</p>
+</section>
+
+<section id="checklist">
+<h2>15. Checklist &amp; Definition of Done</h2>
+<ul>
+<li>[ ] Schema đúng 3 bảng Group Doc, không thêm cột.</li>
+<li>[ ] Domain không JPA/Feign.</li>
+<li>[ ] Exception extends CustomException.</li>
+<li>[ ] Create idempotent theo <code>idempotency_key</code>.</li>
+<li>[ ] complete/fail/refund ghi outbox cùng TX.</li>
+<li>[ ] Relay không chạy trong TX ghi payment.</li>
+<li>[ ] Callback Booking idempotent.</li>
+<li>[ ] Log <code>paymentId</code>, <code>bookingId</code>, <code>idempotencyKey</code>.</li>
+<li>[ ] OpenAPI cho internal API.</li>
+<li>[ ] VNPay: verify checksum, IPN là source of truth, Return idempotent.</li>
+<li>[ ] Secret TMN/Hash chỉ nằm trong <code>.env</code>, không commit.</li>
+<li>[ ] <code>mvn test</code> module payment-service xanh.</li>
+</ul>
+<div class="success">
+<b>Chốt để code:</b> Booking PENDING → POST internal payments (idempotency_key) → redirect VNPay Sandbox → IPN verify hash → COMPLETED + <code>provider_txn_id = vnp_TransactionNo</code> → outbox PaymentCompleted → relay → Booking CONFIRMED. Refund qua API sandbox VNPay, bảng <code>refunds</code> riêng. Không mock status. Dùng shared/common cho lỗi. Money giữ local.
+</div>
+</section>
+</main>
+</div>
+<div class="footer">Payment Service Implementation Guide · aligned with Group Documentation 2.1.3 · one file</div>
+</div>
+</body>
+</html>

@@ -26,7 +26,7 @@ public class PaymentFeignAdapter implements PaymentPort {
                         bookingId.value(),
                         amount.amount(),
                         amount.currency().name(),
-                        "VNPAY",
+                        "SEPAY",
                         idempotencyKey
                 );
 

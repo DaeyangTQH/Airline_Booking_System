@@ -82,7 +82,10 @@ export default function AuthPage({ mode = 'login' }) {
             } else {
                 await login(email, password);
                 toast('Đăng nhập thành công! Chào mừng trở lại SkyPort.');
-                navigate('/', { replace: true });
+                const redirectTo = location.state?.from?.pathname
+                    ? `${location.state.from.pathname}${location.state.from.search || ''}`
+                    : '/';
+                navigate(redirectTo, { replace: true });
             }
         } catch (error) {
             toast(error?.message || 'Có lỗi xảy ra. Vui lòng thử lại.', 'error');
@@ -91,7 +94,12 @@ export default function AuthPage({ mode = 'login' }) {
         }
     };
 
-    if (isAuthenticated) return <Navigate to="/" replace />;
+    if (isAuthenticated) {
+        const redirectTo = location.state?.from?.pathname
+            ? `${location.state.from.pathname}${location.state.from.search || ''}`
+            : '/';
+        return <Navigate to={redirectTo} replace />;
+    }
 
     return (
         <section className="sp-auth" aria-label={isRegister ? 'Đăng ký tài khoản' : 'Đăng nhập'}>

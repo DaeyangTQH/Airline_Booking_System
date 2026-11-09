@@ -32,7 +32,7 @@ public class TicketController {
 
     @GetMapping("/{ticketId}")
     public ResponseEntity<TicketDetailView> getById(
-            @PathVariable UUID ticketId,
+            @PathVariable("ticketId") UUID ticketId,
 
             @RequestHeader("X-User-Id") UUID userId
     ) {
@@ -46,7 +46,7 @@ public class TicketController {
 
     @PutMapping("/{ticketId}/seat")
     public ResponseEntity<Void> assignSeat(
-            @PathVariable UUID ticketId,
+            @PathVariable("ticketId") UUID ticketId,
             @RequestHeader("X-User-Id") UUID userId,
 
             @Valid
@@ -71,7 +71,7 @@ public class TicketController {
 
     @DeleteMapping("/{ticketId}/seat")
     public ResponseEntity<Void> removeSeat(
-            @PathVariable UUID ticketId,
+            @PathVariable("ticketId") UUID ticketId,
             @RequestHeader("X-User-Id") UUID userId
     ) {
         RemoveSeatCommand command =

@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +16,13 @@ import java.util.UUID;
 public interface TicketJpaRepository extends JpaRepository<TicketEntity, UUID> {
 
     boolean existsByTicketNumber(String ticketNumber);
+
+    @Query("""
+        SELECT t FROM TicketEntity t
+        JOIN FETCH t.passenger p
+        WHERE p.booking.id = :bookingId
+        """)
+    List<TicketEntity> findAllByBookingId(@Param("bookingId") UUID bookingId);
 
     @Query("""
         SELECT t FROM TicketEntity t
