@@ -55,11 +55,8 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
                         .pathMatchers("/api/v1/payments/sepay/**").permitAll()
-                        .pathMatchers("/api/sepay/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/status").permitAll()
-                        .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/checkout").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/pay").permitAll()
-                        .pathMatchers("/api/v1/payments/vnpay/**").permitAll()
                         .pathMatchers(HttpMethod.GET,
                                 "/api/v1/airports",
                                 "/api/v1/flights", "/api/v1/flights/**").permitAll()
