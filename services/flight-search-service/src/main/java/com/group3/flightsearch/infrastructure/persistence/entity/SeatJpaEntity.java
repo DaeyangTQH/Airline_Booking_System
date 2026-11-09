@@ -11,11 +11,14 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "seats",
-        uniqueConstraints = @UniqueConstraint(name = "uk_seats_flight_number", columnNames = {"flight_id", "seat_number"}),
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_seats_flight_number", columnNames = {"flight_id", "seat_number"}),
+                @UniqueConstraint(name = "uk_seats_assigned_ticket", columnNames = "assigned_ticket_id")},
         indexes = @Index(name = "idx_seats_flight_class_status", columnList = "flight_id,seat_class,status"))
 @org.hibernate.annotations.Check(constraints =
-        "(status = 'HELD' AND held_by_booking_id IS NOT NULL AND hold_expires_at IS NOT NULL) OR "
-        + "(status <> 'HELD' AND held_by_booking_id IS NULL AND hold_expires_at IS NULL)")
+        "((status = 'HELD' AND held_by_booking_id IS NOT NULL AND hold_expires_at IS NOT NULL) OR "
+        + "(status <> 'HELD' AND held_by_booking_id IS NULL AND hold_expires_at IS NULL)) "
+        + "AND (assigned_ticket_id IS NULL OR status = 'BOOKED')")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -37,6 +40,9 @@ public class SeatJpaEntity {
     private UUID heldByBookingId;
     @Column(name = "hold_expires_at")
     private Instant holdExpiresAt;
+    // A ticket can own at most one seat, including across different flights.
+    @Column(name = "assigned_ticket_id")
+    private UUID assignedTicketId;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "flight_id", insertable = false, updatable = false,
             foreignKey = @ForeignKey(name = "fk_seats_flight"))

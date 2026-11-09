@@ -373,11 +373,77 @@ Manual verification (no new Java tests):
 6. Configure different keys for the two services and restart: Booking creation
    must fail without saving a Booking. Restore matching keys afterward.
 
-Seat assignment/release endpoints requested by `FlightSeatFeignClient` remain
-the next integration step; this change restores only the stashed fare quote.
+## Internal seat assignment for Booking Service
+
+These endpoints match the existing `FlightSeatFeignClient` without changing
+Booking's flow. Both require the same internal API key as fare quotes.
+
+| Method | Path | Body | Success |
+| --- | --- | --- | --- |
+| PUT | `/internal/v1/flights/{flightId}/seat-assignments/{ticketId}` | `{"seatId":"<UUID>"}` | 204 |
+| DELETE | `/internal/v1/flights/{flightId}/seat-assignments/{ticketId}` | None | 204 |
+
+PUT assigns an AVAILABLE seat as BOOKED to the external ticket reference. Repeat
+PUT for the same assignment succeeds without changing inventory, even if the
+flight has since departed. Changing seats validates the new seat before releasing
+the previous seat, then writes both changes atomically. HELD (including expired
+holds awaiting expiry), BLOCKED, and BOOKED seats belonging to someone else are
+not available. Existing BOOKED seats with no ticket reference are not reclaimed.
+New assignments/changes require a future SCHEDULED/DELAYED flight.
+
+DELETE releases only the requested ticket's assignment. It is idempotent if no
+assignment exists; it never releases another ticket's seat. Cleanup is allowed
+after departure/cancellation. A ticket already assigned on another flight cannot
+be modified using the wrong flight ID.
+
+Seat adds nullable `assigned_ticket_id` with unique constraint
+`uk_seats_assigned_ticket`; it is an external ID without a cross-service FK.
+Existing rows remain unchanged with a null reference. Restart Flight Search to
+apply the column/unique constraint using the current Hibernate ddl-auto=update
+configuration. No seed ticket assignments are created. The public Seat response
+continues to omit owner IDs.
+
+All assignment writes lock Flight first, using the existing seat mutation lock
+convention. Saves flush the old ticket reference before replacement and refresh
+availability in the same transaction. A failed replacement rolls back both seats
+and availability. The unique constraint also prevents a concurrent assignment of
+the same ticket across different flights.
+
+Validation responses: missing/incorrect key 401, malformed UUID/JSON or null/missing
+seatId 400, missing Flight/Seat 404, wrong Flight/unavailable Seat/inactive Flight
+or duplicate ticket assignment 409. Booking's existing adapter already maps 404
+and 409 and checks the user owns an ISSUED ticket before making the Feign call.
+This contract carries no bookingId, fareClass or user identity: Flight Search
+trusts the authenticated internal caller for ticket existence, ownership, ticket
+status and purchased class. It cannot independently verify those facts locally.
+
+Manual verification (no new Java tests):
+
+1. Restart Flight Search and verify the new column and unique constraint exist.
+   Choose a future flight, two AVAILABLE seats A/B, and ticket IDs T1/T2.
+2. PUT T1/A without a key or with an incorrect key: 401; with valid key: 204.
+   A becomes BOOKED and its class availability falls by one. Repeat PUT: 204,
+   no further decrease. Restart and verify the assignment persists.
+3. PUT T2/A: 409. PUT T1/B: 204; A becomes AVAILABLE, B BOOKED, and availability
+   reflects their respective classes. Attempt switching T1 to BLOCKED/HELD/A seat
+   owned by T2: 409 and the old assignment stays intact.
+4. Test missing/null seatId and malformed IDs (400), unknown Flight/Seat (404),
+   a seat or assigned ticket from another Flight (409), inactive/departed flight
+   for a new assignment (409). Use otherwise valid authenticated requests.
+5. DELETE T1: 204; B becomes AVAILABLE and availability rises by one. Repeat:
+   204 with unchanged counts. DELETE T2 must never free a seat owned by T1.
+6. Send concurrent PUTs for the same seat by different tickets: only one succeeds.
+   Send concurrent PUTs for the same ticket across flights: only one succeeds.
+7. Call Booking's existing ticket PUT/DELETE seat APIs with a real ISSUED ticket
+   and valid JWT. Verify Booking's seatId and Flight Search's state agree.
+
+Transactions are local to each service. A Booking database failure after a
+successful remote call can still leave state different between services; retries
+of the same PUT/DELETE are safe, but distributed compensation/reconciliation is
+not implemented by this contract.
 
 ## Open decisions for later steps
 
 - Add schema migrations.
 - Implement atomic seat reservation, confirmation, and expiry.
-- Implement authenticated seat assignment/release integration.
+- Add distributed compensation/reconciliation for remote seat assignments.

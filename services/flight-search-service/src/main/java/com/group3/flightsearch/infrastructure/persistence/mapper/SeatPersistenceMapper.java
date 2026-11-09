@@ -16,6 +16,7 @@ public class SeatPersistenceMapper {
         entity.setStatus(seat.getStatus());
         entity.setHeldByBookingId(seat.getHeldByBookingId() == null ? null : seat.getHeldByBookingId().value());
         entity.setHoldExpiresAt(seat.getHoldExpiresAt());
+        entity.setAssignedTicketId(seat.getAssignedTicketId() == null ? null : seat.getAssignedTicketId().value());
         return entity;
     }
 
@@ -23,6 +24,7 @@ public class SeatPersistenceMapper {
         return Seat.restore(new SeatId(entity.getId()), new FlightId(entity.getFlightId()),
                 new SeatNumber(entity.getSeatNumber()), entity.getSeatClass(), entity.getStatus(),
                 entity.getHeldByBookingId() == null ? null : new BookingId(entity.getHeldByBookingId()),
-                entity.getHoldExpiresAt());
+                entity.getHoldExpiresAt(),
+                entity.getAssignedTicketId() == null ? null : new TicketId(entity.getAssignedTicketId()));
     }
 }
