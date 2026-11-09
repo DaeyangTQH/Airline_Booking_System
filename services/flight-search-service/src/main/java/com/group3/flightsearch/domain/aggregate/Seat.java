@@ -8,6 +8,7 @@ import com.group3.flightsearch.domain.valueobject.BookingId;
 import com.group3.flightsearch.domain.valueobject.FlightId;
 import com.group3.flightsearch.domain.valueobject.SeatId;
 import com.group3.flightsearch.domain.valueobject.SeatNumber;
+import com.group3.flightsearch.domain.valueobject.TicketId;
 import java.time.Instant;
 
 public final class Seat {
@@ -18,9 +19,10 @@ public final class Seat {
     private SeatStatus status;
     private BookingId heldByBookingId;
     private Instant holdExpiresAt;
+    private TicketId assignedTicketId;
 
     private Seat(SeatId id, FlightId flightId, SeatNumber number, FareClass seatClass,
-                 SeatStatus status, BookingId heldByBookingId, Instant holdExpiresAt) {
+                 SeatStatus status, BookingId heldByBookingId, Instant holdExpiresAt, TicketId assignedTicketId) {
         if (id == null || flightId == null || number == null || seatClass == null || status == null) {
             throw new InvalidDomainValueException("Seat identity, flight, number, class and status are required");
         }
@@ -31,6 +33,9 @@ public final class Seat {
         } else if (heldByBookingId != null || holdExpiresAt != null) {
             throw new InvalidDomainValueException("Only a held seat may have owner or expiry");
         }
+        if (assignedTicketId != null && status != SeatStatus.BOOKED) {
+            throw new InvalidDomainValueException("Only a booked seat may be assigned to a ticket");
+        }
         this.id = id;
         this.flightId = flightId;
         this.number = number;
@@ -38,15 +43,40 @@ public final class Seat {
         this.status = status;
         this.heldByBookingId = heldByBookingId;
         this.holdExpiresAt = holdExpiresAt;
+        this.assignedTicketId = assignedTicketId;
     }
 
     public static Seat create(SeatId id, FlightId flightId, SeatNumber number, FareClass seatClass) {
-        return new Seat(id, flightId, number, seatClass, SeatStatus.AVAILABLE, null, null);
+        return new Seat(id, flightId, number, seatClass, SeatStatus.AVAILABLE, null, null, null);
     }
 
     public static Seat restore(SeatId id, FlightId flightId, SeatNumber number, FareClass seatClass,
                                SeatStatus status, BookingId owner, Instant expiresAt) {
-        return new Seat(id, flightId, number, seatClass, status, owner, expiresAt);
+        return restore(id, flightId, number, seatClass, status, owner, expiresAt, null);
+    }
+
+    public static Seat restore(SeatId id, FlightId flightId, SeatNumber number, FareClass seatClass,
+                               SeatStatus status, BookingId owner, Instant expiresAt, TicketId assignedTicketId) {
+        return new Seat(id, flightId, number, seatClass, status, owner, expiresAt, assignedTicketId);
+    }
+
+    public void assignToTicket(TicketId ticketId) {
+        if (ticketId == null) throw new InvalidDomainValueException("Ticket id is required");
+        if (ticketId.equals(assignedTicketId) && status == SeatStatus.BOOKED) return;
+        if (status != SeatStatus.AVAILABLE) {
+            throw new InvalidDomainStateException("Seat is not available for ticket assignment");
+        }
+        status = SeatStatus.BOOKED;
+        assignedTicketId = ticketId;
+    }
+
+    public void releaseFromTicket(TicketId ticketId) {
+        if (ticketId == null) throw new InvalidDomainValueException("Ticket id is required");
+        if (status != SeatStatus.BOOKED || !ticketId.equals(assignedTicketId)) {
+            throw new InvalidDomainStateException("Seat is not assigned to this ticket");
+        }
+        status = SeatStatus.AVAILABLE;
+        assignedTicketId = null;
     }
 
     public void hold(BookingId bookingId, Instant expiresAt, Instant now) {
@@ -127,4 +157,5 @@ public final class Seat {
     public SeatStatus getStatus() { return status; }
     public BookingId getHeldByBookingId() { return heldByBookingId; }
     public Instant getHoldExpiresAt() { return holdExpiresAt; }
+    public TicketId getAssignedTicketId() { return assignedTicketId; }
 }

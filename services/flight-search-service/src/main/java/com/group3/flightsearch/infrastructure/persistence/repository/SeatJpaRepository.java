@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.UUID;
+import java.util.Optional;
 
 public interface SeatJpaRepository extends JpaRepository<SeatJpaEntity, UUID> {
+    Optional<SeatJpaEntity> findByAssignedTicketId(UUID ticketId);
     boolean existsByFlightIdAndSeatNumber(UUID flightId, String seatNumber);
     long countByFlightId(UUID flightId);
     Page<SeatJpaEntity> findAllByFlightId(UUID flightId, Pageable pageable);
