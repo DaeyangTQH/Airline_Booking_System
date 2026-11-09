@@ -11,6 +11,7 @@ import com.group3.domain.vo.PaymentId;
 import com.group3.domain.vo.ProviderTxnId;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.UUID;
 /**
  * Hoàn tất payment khi SePay redirect success_url (không dùng IPN).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = lombok.AccessLevel.PRIVATE, makeFinal = true)
@@ -29,30 +31,31 @@ public class HandleSePayReturnService implements HandleSePayReturnPort {
 
     @Override
     @Transactional
-    public void handleSuccess(HandleSePayReturnCommand command) {
+    public boolean handleSuccess(HandleSePayReturnCommand command) {
         if (command == null || command.orderInvoiceNumber() == null || command.orderInvoiceNumber().isBlank()) {
-            return;
+            log.warn("SePay success return missing payment/invoice id");
+            return false;
         }
 
         UUID paymentId = parsePaymentId(command.orderInvoiceNumber());
         if (paymentId == null) {
-            return;
+            log.warn("SePay success return invalid invoice={}", command.orderInvoiceNumber());
+            return false;
         }
 
         Payment payment = paymentRepository.findById(new PaymentId(paymentId)).orElse(null);
         if (payment == null) {
-            return;
+            log.warn("SePay success return payment not found id={}", paymentId);
+            return false;
         }
 
         if (payment.getStatus() == PaymentStatus.COMPLETED) {
-            try {
-                bookingCallbackPort.notifyPaymentCompleted(payment);
-            } catch (BookingCallbackException ignored) {
-            }
-            return;
+            notifyBooking(payment);
+            return true;
         }
         if (payment.getStatus() != PaymentStatus.PENDING) {
-            return;
+            log.warn("SePay success return payment {} status={}", paymentId, payment.getStatus());
+            return false;
         }
 
         String txn = command.transactionId();
@@ -65,14 +68,27 @@ public class HandleSePayReturnService implements HandleSePayReturnPort {
 
         payment.complete(new ProviderTxnId(txn));
         Payment saved = paymentRepository.save(payment);
+        notifyBooking(saved);
+        log.info("Payment {} marked COMPLETED, booking={}", paymentId, saved.getBookingId().value());
+        return true;
+    }
+
+    private void notifyBooking(Payment payment) {
         try {
-            bookingCallbackPort.notifyPaymentCompleted(saved);
-        } catch (BookingCallbackException ignored) {
+            bookingCallbackPort.notifyPaymentCompleted(payment);
+        } catch (BookingCallbackException ex) {
+            log.error(
+                    "Failed to notify booking-service for payment {} booking {}: {}",
+                    payment.getId().value(),
+                    payment.getBookingId().value(),
+                    ex.getMessage()
+            );
         }
     }
 
     /**
-     * order_invoice_number = {@code {paymentUuid}} hoặc {@code {paymentUuid}-{epochMillis}}.
+     * order_invoice_number = {@code {paymentUuid}} hoặc {@code {paymentUuid}-{suffix}}.
+     * payment_id callback = {@code {paymentUuid}}.
      */
     static UUID parsePaymentId(String orderInvoiceNumber) {
         String raw = orderInvoiceNumber.trim();

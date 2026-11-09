@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, BadgeInfo, ChevronDown, CircleAlert, Plane, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleAlert, Plane, SlidersHorizontal } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import SearchWidget from '../components/SearchWidget';
 import FlightCard from '../components/FlightCard';
@@ -47,9 +47,6 @@ export default function SearchPage() {
       <p>{displayDate(departure)} · {passengers} hành khách · {roundtrip ? 'Khứ hồi' : 'Một chiều'}</p>
     </div></div><SearchWidget compact defaultValues={{ from, to, departure, returnDate, passengers, cabin, trip: roundtrip ? 'roundtrip' : 'oneway' }}/></div></section>
     <section className="shell search-results-body">
-      <div className="demo-banner"><BadgeInfo size={22}/><div><strong>Lịch bay và giá từ hệ thống</strong>
-        <p>Dữ liệu mẫu dùng để thử nghiệm. Kết quả lọc theo số hành khách và ghế chưa giữ; xem kết quả chưa giữ chỗ cho bạn.{roundtrip && ' Xem riêng từng chiều; chưa ghép thành vé khứ hồi.'}</p>
-      </div></div>
       {roundtrip && <div className="booking-buttons" role="group" aria-label="Chiều bay">
         <button className={returnLeg ? 'btn btn-outline' : 'btn btn-primary'} onClick={() => { setLeg('outbound'); setPage(0); }}>Chiều đi · {displayDate(departure)}</button>
         <button className={returnLeg ? 'btn btn-primary' : 'btn btn-outline'} onClick={() => { setLeg('return'); setPage(0); }}>Chiều về · {displayDate(returnDate)}</button>

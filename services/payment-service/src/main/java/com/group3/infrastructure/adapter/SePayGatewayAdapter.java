@@ -89,9 +89,11 @@ public class SePayGatewayAdapter implements SePayGatewayPort {
         fields.put("order_amount", amount);
         fields.put("currency", blankToDefault(properties.getCurrency(), "VND"));
         fields.put("order_description", "Thanh toan booking " + invoice);
-        fields.put("success_url", base + "/api/v1/payments/sepay/return/success");
-        fields.put("error_url", base + "/api/v1/payments/sepay/return/error");
-        fields.put("cancel_url", base + "/api/v1/payments/sepay/return/cancel");
+        // SePay thường chỉ redirect về success_url, không luôn kèm order_invoice_number.
+        // Nhúng payment_id vào URL để return handler luôn biết payment nào cần complete.
+        fields.put("success_url", returnUrl(base, "success", invoice));
+        fields.put("error_url", returnUrl(base, "error", invoice));
+        fields.put("cancel_url", returnUrl(base, "cancel", invoice));
         if (properties.getLang() != null && !properties.getLang().isBlank()) {
             fields.put("lang", properties.getLang().trim());
         }
@@ -136,6 +138,11 @@ public class SePayGatewayAdapter implements SePayGatewayPort {
         if (properties.getCallbackBaseUrl() == null || properties.getCallbackBaseUrl().isBlank()) {
             throw new IllegalStateException("SEPAY_CALLBACK_BASE_URL is required");
         }
+    }
+
+    private static String returnUrl(String base, String path, String paymentId) {
+        // Path-based id: SePay thường append query (?order_id=...) — tránh đụng query sẵn có.
+        return base + "/api/v1/payments/sepay/return/" + path + "/" + paymentId;
     }
 
     private static String blankToDefault(String value, String fallback) {

@@ -77,6 +77,19 @@ class SePayGatewayAdapterTest {
         assertEquals("BANK_TRANSFER", fields.get("payment_method"));
         assertEquals("150000", fields.get("order_amount"));
         assertTrue(fields.get("order_invoice_number").startsWith(payment.getId().value() + "-"));
+        String paymentId = payment.getId().value().toString();
+        assertEquals(
+                "http://localhost:8084/api/v1/payments/sepay/return/success/" + paymentId,
+                fields.get("success_url")
+        );
+        assertEquals(
+                "http://localhost:8084/api/v1/payments/sepay/return/error/" + paymentId,
+                fields.get("error_url")
+        );
+        assertEquals(
+                "http://localhost:8084/api/v1/payments/sepay/return/cancel/" + paymentId,
+                fields.get("cancel_url")
+        );
         assertTrue(fields.containsKey("signature"));
         assertFalse(fields.get("signature").isBlank());
     }

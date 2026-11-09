@@ -316,13 +316,13 @@ public class Booking {
 
         if(status != BookingStatus.PENDING){
             throw new InvalidBookingStateException(
-                    "Cannot initiate payment for an expired booking"
+                    "Booking đã hết hạn hoặc không còn chờ thanh toán."
             );
         }
 
         if(!now.isBefore(expiresAt)){
             throw new InvalidBookingStateException(
-                    "Cannot initiate payment for an expired booking"
+                    "Booking đã hết hạn giữ chỗ, không thể thanh toán. Vui lòng tạo đặt chỗ mới."
             );
         }
     }
@@ -381,7 +381,7 @@ public class Booking {
 
         if (!now.isBefore(expiresAt)) {
             throw new InvalidBookingStateException(
-                    "Cannot confirm payment for an expired booking"
+                    "Booking đã hết hạn giữ chỗ, không thể xác nhận thanh toán."
             );
         }
 

@@ -4,6 +4,12 @@ import { ArrowLeft, BadgeInfo, Building2, CreditCard, LockKeyhole } from 'lucide
 import { bookingService } from '../services/bookingService';
 import { money } from '../data/cities';
 import Busy from '../components/Busy';
+import {
+  apiMessageVi,
+  bookingDisplayStatus,
+  bookingStatusLabel,
+  isBookingHoldExpired
+} from '../utils/bookingUi';
 
 export default function PaymentPage() {
   const { bookingId } = useParams();
@@ -16,12 +22,14 @@ export default function PaymentPage() {
     let active = true;
     bookingService.detail(bookingId)
       .then((data) => { if (active) setBooking(data); })
-      .catch((e) => { if (active) setError(e.message); })
+      .catch((e) => { if (active) setError(apiMessageVi(e.message)); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [bookingId]);
 
-  const canPay = booking?.status === 'PENDING';
+  const expired = isBookingHoldExpired(booking);
+  const displayStatus = bookingDisplayStatus(booking);
+  const canPay = booking?.status === 'PENDING' && !expired;
   const alreadyPaid = booking?.status === 'CONFIRMED';
 
   async function startPayment() {
@@ -30,6 +38,12 @@ export default function PaymentPage() {
     setError('');
     try {
       const result = await bookingService.initiatePayment(bookingId);
+      if (result?.paymentId) {
+        sessionStorage.setItem('skyport_last_payment', JSON.stringify({
+          paymentId: result.paymentId,
+          bookingId
+        }));
+      }
       if (result?.status === 'COMPLETED') {
         window.location.assign(`/payment-return?status=SUCCESS&invoice=${encodeURIComponent(result.paymentId || '')}`);
         return;
@@ -39,7 +53,7 @@ export default function PaymentPage() {
       }
       window.location.assign(result.paymentUrl);
     } catch (e) {
-      setError(e.message || 'Không khởi tạo được thanh toán.');
+      setError(apiMessageVi(e.message || 'Không khởi tạo được thanh toán.'));
       setPaying(false);
     }
   }
@@ -53,20 +67,20 @@ export default function PaymentPage() {
         <div>
           <span className="eyebrow">THANH TOÁN AN TOÀN</span>
           <h1>Thanh toán đặt chỗ</h1>
-          <p>Thanh toán qua Cổng SePay Sandbox (chuyển khoản QR). Không phát sinh tiền thật.</p>
+          <p>Thanh toán qua cổng SePay (chuyển khoản QR).</p>
         </div>
       </div>
 
       <div className="payment-layout">
         <div className="account-card payment-method">
           <h2><CreditCard size={21} /> Phương thức thanh toán</h2>
-          <p>Chọn SePay rồi bấm thanh toán để mở trang checkout sandbox.</p>
+          <p>Chọn SePay rồi bấm thanh toán để mở trang checkout.</p>
 
           <div className={`payment-option ${canPay ? 'is-active' : ''}`}>
             <span className="payment-logo"><Building2 size={22} /></span>
             <div>
               <b>SePay — Chuyển khoản QR</b>
-              <small>Redirect tới pay-sandbox.sepay.vn, thanh toán test mode</small>
+              <small>Redirect tới trang thanh toán SePay</small>
             </div>
             <span className="payment-radio" />
           </div>
@@ -74,14 +88,21 @@ export default function PaymentPage() {
           {alreadyPaid && (
             <div className="demo-banner">
               <BadgeInfo size={20} />
-              <p>Booking này đã thanh toán / xác nhận. Bạn có thể xem lại trong danh sách chuyến đi.</p>
+              <p>Booking này đã thanh toán và xác nhận. Bạn có thể xem lại trong danh sách chuyến đi.</p>
             </div>
           )}
 
-          {!alreadyPaid && !canPay && booking && (
+          {expired && !alreadyPaid && (
             <div className="demo-banner">
               <BadgeInfo size={20} />
-              <p>Booking ở trạng thái {booking.status}, không thể khởi tạo thanh toán.</p>
+              <p>Booking đã hết hạn giữ chỗ. Vui lòng tạo đặt chỗ mới để tiếp tục thanh toán.</p>
+            </div>
+          )}
+
+          {!alreadyPaid && !expired && !canPay && booking && (
+            <div className="demo-banner">
+              <BadgeInfo size={20} />
+              <p>Booking đang ở trạng thái {bookingStatusLabel(displayStatus)}, không thể khởi tạo thanh toán.</p>
             </div>
           )}
 
@@ -94,9 +115,7 @@ export default function PaymentPage() {
           ) : alreadyPaid ? (
             <Link className="btn btn-primary" to="/trips">Xem chuyến đi của tôi</Link>
           ) : (
-            <button className="btn btn-primary" type="button" disabled>
-              <LockKeyhole size={16} /> Thanh toán không khả dụng
-            </button>
+            <Link className="btn btn-primary" to="/flights">Tìm chuyến bay mới</Link>
           )}
         </div>
 
@@ -107,7 +126,7 @@ export default function PaymentPage() {
               <div className="detail-list">
                 <div><span>Mã booking</span><b>{booking.bookingReference}</b></div>
                 <div><span>Số vé</span><b>{booking.ticketQuantity}</b></div>
-                <div><span>Trạng thái</span><b>{booking.status}</b></div>
+                <div><span>Trạng thái</span><b>{bookingStatusLabel(displayStatus)}</b></div>
               </div>
               <div className="detail-total">{money(booking.totalAmount, booking.currency)}</div>
             </>

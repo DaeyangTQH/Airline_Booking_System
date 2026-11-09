@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .pathMatchers("/api/sepay/**").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/status").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/checkout").permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/payments/*/pay").permitAll()
                         .pathMatchers("/api/v1/payments/vnpay/**").permitAll()
                         .pathMatchers(HttpMethod.GET,
                                 "/api/v1/airports", "/api/v1/airports/**",
