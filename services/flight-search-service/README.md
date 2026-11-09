@@ -327,8 +327,57 @@ Manual verification (no new Java tests):
 6. A new Flight without seats has zero/zero for all classes; it appears in search
    only after adding both a current fare and enough AVAILABLE seats.
 
+## Internal fare quote for Booking Service
+
+`GET /internal/v1/flights/{flightId}/fare-quote?fareClass=ECONOMY&quantity=1`
+is called directly by Booking's `FlightSearchFeignClient` through Eureka.
+Booking's existing `InternalFeignConfiguration` adds `X-Internal-Api-Key`;
+no manual Feign header parameter or Gateway route is required.
+
+Flight Search reads `app.internal-api-key` from `INTERNAL_API_KEY`, rejects a blank
+configured key at startup, and validates the header before querying a quote.
+Missing/incorrect keys return 401 using shared `CustomException`/`ErrorResponse`.
+Both services must use the same key. This authenticates possession of the shared
+secret, not an exclusive Booking identity; other holders have the same trust.
+
+The response matches Booking's current `FlightFareResponse`:
+
+```json
+{"flightId":"a3000000-0000-4000-8000-000000000001","fareClass":"ECONOMY","unitPrice":1200000,"currency":"VND","availableSeats":11,"bookable":true}
+```
+
+Quotes select the requested class's fare effective at `[validFrom, validTo)` and
+read availability in a repeatable-read transaction. `bookable` requires SCHEDULED
+or DELAYED status and a future departure. Booking separately checks availableSeats
+against quantity. Any positive quantity is accepted, matching Booking's domain.
+The quote does not reserve seats or decrement availability.
+
+Missing flight/current fare returns 404; unsupported Booking currency (outside
+VND/USD) returns 409; invalid quantity/parameters return 400. Ambiguous current
+fares or a missing availability projection return 500 rather than a false quote.
+Booking maps 404 to FlightNotFound and 409 to FlightNotBookable; authentication or
+server errors remain communication failures and prevent creation of a Booking.
+
+Manual verification (no new Java tests):
+
+1. Start PostgreSQL/Eureka, Flight Search (8083), and Booking with the same
+   `INTERNAL_API_KEY`. Use an existing future flight with a currently valid fare.
+2. Call the quote endpoint directly on Flight Search without the header, then
+   with an incorrect key: expect 401 in both cases.
+3. Call with the configured key: expect 200 and fields matching the current fare
+   and availability endpoints. Keep the actual key out of logs/screenshots.
+4. With a valid key, test quantity=0 (400), missing flight (404), and quantity
+   above availableSeats (200 quote; Booking rejects with insufficient seats).
+5. Create a Booking through its public API using a valid user JWT. Verify that
+   the Feign request succeeds without manually passing an internal header.
+6. Configure different keys for the two services and restart: Booking creation
+   must fail without saving a Booking. Restore matching keys afterward.
+
+Seat assignment/release endpoints requested by `FlightSeatFeignClient` remain
+the next integration step; this change restores only the stashed fare quote.
+
 ## Open decisions for later steps
 
 - Add schema migrations.
 - Implement atomic seat reservation, confirmation, and expiry.
-- Implement and review service-to-service integration separately.
+- Implement authenticated seat assignment/release integration.

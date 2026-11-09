@@ -25,6 +25,11 @@ spring:
               predicates:
                 - Path=/api/users/**
 
+            - id: flight-search-service
+              uri: lb://flight-search-service
+              predicates:
+                - Path=/api/v1/airports,/api/v1/airports/**,/api/v1/flights,/api/v1/flights/**,/api/v1/seats/**
+
             - id: user-service-passengers
               uri: lb://user-service
               predicates:

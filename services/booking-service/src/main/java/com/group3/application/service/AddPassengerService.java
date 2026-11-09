@@ -3,7 +3,10 @@ package com.group3.application.service;
 import com.group3.application.command.AddPassengerCommand;
 import com.group3.application.exception.BookingAccessDeniedException;
 import com.group3.application.exception.TicketNumberGenerationException;
+import com.group3.application.integration.NotificationEvent;
+import com.group3.application.integration.NotificationEventType;
 import com.group3.application.port.in.AddPassengerUseCase;
+import com.group3.application.port.out.NotificationEventPublisher;
 import com.group3.application.port.out.TicketNumberGenerator;
 import com.group3.application.result.AddPassengerResult;
 import com.group3.domain.aggregate.Booking;
@@ -26,6 +29,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class AddPassengerService implements AddPassengerUseCase {
@@ -34,6 +40,7 @@ public class AddPassengerService implements AddPassengerUseCase {
     private final BookingRepository bookingRepository;
     private final TicketRepository ticketRepository;
     private final TicketNumberGenerator ticketNumberGenerator;
+    private final NotificationEventPublisher notificationEventPublisher;
 
     @Override
     @Transactional
@@ -89,6 +96,14 @@ public class AddPassengerService implements AddPassengerUseCase {
 
         Ticket savedTicket = ticketRepository.save(ticket);
 
+        notificationEventPublisher.publish(
+                createTicketIssuedEvent(
+                        booking,
+                        passenger,
+                        savedTicket
+                )
+        );
+
         return toResult(
                 passenger,
                 savedTicket
@@ -140,6 +155,28 @@ public class AddPassengerService implements AddPassengerUseCase {
                                 : ticket.getSeatId().value(),
                         ticket.getStatus()
                 )
+        );
+    }
+
+    private NotificationEvent createTicketIssuedEvent(
+            Booking booking,
+            BookingPassenger passenger,
+            Ticket ticket
+    ) {
+        return new NotificationEvent(
+                UUID.randomUUID(),
+                booking.getUserId().value(),
+                booking.getContactInfo().email(),
+                NotificationEventType.TICKET_ISSUED,
+                "Ticket issued",
+                "Ticket "
+                        + ticket.getTicketNumber().value()
+                        + " for passenger "
+                        + passenger.getFullName().value()
+                        + " has been issued.",
+                booking.getId().value(),
+                ticket.getId().value(),
+                Instant.now()
         );
     }
 }

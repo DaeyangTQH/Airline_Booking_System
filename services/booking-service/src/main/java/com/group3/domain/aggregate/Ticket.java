@@ -129,27 +129,7 @@ public class Ticket {
             return;
         }
 
-        if(status == TicketStatus.REFUNDED){
-            throw new InvalidTicketStateException(
-                    "Refunded ticket cannot be cancelled"
-            );
-        }
-
         status = TicketStatus.CANCELLED;
-    }
-
-    public void markRefunded() {
-        if(status == TicketStatus.REFUNDED){
-            return;
-        }
-
-        if(status == TicketStatus.CANCELLED){
-            throw new InvalidTicketStateException(
-                    "Cancelled ticket cannot be marked as refunded"
-            );
-        }
-
-        status = TicketStatus.REFUNDED;
     }
 
     private void ensureIssued(String message){
