@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 
 @Component
@@ -54,27 +55,20 @@ public class SeatRepositoryAdapter implements SeatRepository {
 
     @Override
     public Optional<Seat> findById(SeatId id) {
-        return repository.findById(id.value()).map(mapper::toDomain);
+        var seat = repository.findById(id.value());
+        if (seat.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(mapper.toDomain(seat.get()));
     }
 
     @Override
     public Optional<Seat> findByAssignedTicketId(TicketId ticketId) {
-        return repository.findByAssignedTicketId(ticketId.value()).map(mapper::toDomain);
-    }
-
-    @Override
-    public boolean existsByFlightAndNumber(FlightId flightId, SeatNumber number) {
-        return repository.existsByFlightIdAndSeatNumber(flightId.value(), number.value());
-    }
-
-    @Override
-    public long countByFlight(FlightId flightId) {
-        return repository.countByFlightId(flightId.value());
-    }
-
-    @Override
-    public int maxAssignedSeatsByAircraft(AircraftId aircraftId) {
-        return repository.maxAssignedSeatsByAircraft(aircraftId.value());
+        var seat = repository.findByAssignedTicketId(ticketId.value());
+        if (seat.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(mapper.toDomain(seat.get()));
     }
 
     @Override
@@ -82,6 +76,10 @@ public class SeatRepositoryAdapter implements SeatRepository {
         var pageable = PageRequest.of(page, size, Sort.by("seatNumber", "id"));
         var rows = seatClass == null ? repository.findAllByFlightId(flightId.value(), pageable)
                 : repository.findAllByFlightIdAndSeatClass(flightId.value(), seatClass, pageable);
-        return rows.stream().map(mapper::toDomain).toList();
+        List<Seat> result = new ArrayList<>();
+        for (var row : rows) {
+            result.add(mapper.toDomain(row));
+        }
+        return List.copyOf(result);
     }
 }

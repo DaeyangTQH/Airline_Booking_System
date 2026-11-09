@@ -10,8 +10,5 @@ public interface SeatRepository {
     Seat save(Seat seat);
     Optional<Seat> findById(SeatId id);
     Optional<Seat> findByAssignedTicketId(TicketId ticketId);
-    boolean existsByFlightAndNumber(FlightId flightId, SeatNumber number);
-    long countByFlight(FlightId flightId);
-    int maxAssignedSeatsByAircraft(AircraftId aircraftId);
     List<Seat> findByFlight(FlightId flightId, FareClass seatClass, int page, int size);
 }

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 
 @Component
@@ -19,13 +20,21 @@ public class FlightAvailabilityAdapter implements FlightAvailabilityPort {
 
     @Override
     public List<FlightAvailabilityView> findByFlight(UUID flightId) {
-        return repository.findAllByFlightIdOrderByFareClassAsc(flightId).stream().map(this::view).toList();
+        List<FlightAvailabilityView> result = new ArrayList<>();
+        for (var row : repository.findAllByFlightIdOrderByFareClassAsc(flightId)) {
+            result.add(view(row));
+        }
+        return List.copyOf(result);
     }
 
     @Override
     public List<FlightAvailabilityView> findByFlights(Collection<UUID> flightIds) {
         if (flightIds.isEmpty()) return List.of();
-        return repository.findAllByFlightIdInOrderByFareClassAsc(flightIds).stream().map(this::view).toList();
+        List<FlightAvailabilityView> result = new ArrayList<>();
+        for (var row : repository.findAllByFlightIdInOrderByFareClassAsc(flightIds)) {
+            result.add(view(row));
+        }
+        return List.copyOf(result);
     }
 
     @Override

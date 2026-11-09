@@ -4,6 +4,6 @@ import com.group3.flightsearch.domain.model.FareClass;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-// Wire fields match Booking Service's FlightFareResponse.
+// Application result; internal HTTP responses are mapped in infrastructure.
 public record FareQuoteView(UUID flightId, FareClass fareClass, BigDecimal unitPrice,
         String currency, int availableSeats, boolean bookable) {}
