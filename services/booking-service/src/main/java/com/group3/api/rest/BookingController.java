@@ -3,9 +3,11 @@ package com.group3.api.rest;
 import com.group3.api.dto.AddPassengerRequest;
 import com.group3.api.dto.CreateBookingRequest;
 import com.group3.application.command.AddPassengerCommand;
+import com.group3.application.command.CancelBookingCommand;
 import com.group3.application.command.CreateBookingCommand;
 import com.group3.application.command.InitiatePaymentCommand;
 import com.group3.application.port.in.AddPassengerUseCase;
+import com.group3.application.port.in.CancelBookingUseCase;
 import com.group3.application.port.in.CreateBookingUseCase;
 import com.group3.application.port.in.GetBookingPassengersUseCase;
 import com.group3.application.port.in.GetBookingUseCase;
@@ -43,22 +45,28 @@ public class BookingController {
     private final AddPassengerUseCase addPassengerUseCase;
     private final GetBookingPassengersUseCase getBookingPassengersUseCase;
     private final InitiatePaymentUseCase initiatePaymentUseCase;
+    private final CancelBookingUseCase cancelBookingUseCase;
 
     @GetMapping("/{bookingId}")
     public ResponseEntity<BookingDetailView> getById(
-            @PathVariable UUID bookingId
+            @PathVariable UUID bookingId,
+            @RequestHeader("X-User-Id") UUID userId
             ){
         return ResponseEntity.ok(
-                getBookingUseCase.getById(bookingId)
+                getBookingUseCase.getById(bookingId, userId)
         );
     }
 
     @GetMapping("/ref/{bookingReference}")
     public ResponseEntity<BookingDetailView> getByReference(
-            @PathVariable String bookingReference
+            @PathVariable String bookingReference,
+            @RequestHeader("X-User-Id") UUID userId
     ){
         return ResponseEntity.ok(
-                getBookingUseCase.getByReference(bookingReference)
+                getBookingUseCase.getByReference(
+                        bookingReference,
+                        userId
+                )
         );
     }
 
@@ -152,6 +160,22 @@ public class BookingController {
                 initiatePaymentUseCase.initiate(command);
 
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{bookingId}/cancel")
+    public ResponseEntity<Void> cancelBooking(
+            @PathVariable UUID bookingId,
+            @RequestHeader("X-User-Id") UUID userId
+    ){
+        CancelBookingCommand command =
+                new CancelBookingCommand(
+                        bookingId,
+                        userId
+                );
+
+        cancelBookingUseCase.cancel(command);
+
+        return ResponseEntity.noContent().build();
     }
 
 }

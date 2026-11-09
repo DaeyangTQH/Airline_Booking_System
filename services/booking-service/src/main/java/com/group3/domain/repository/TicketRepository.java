@@ -11,13 +11,7 @@ public interface TicketRepository {
 
     Ticket save(Ticket ticket);
 
-    Optional<Ticket> findById(TicketId id);
-
-    Optional<Ticket> findByNumber(TicketNumber number);
-
-    Optional<Ticket> findByPassengerId(BookingPassengerId passengerId);
-
-    boolean existsByPassengerId(BookingPassengerId passengerId);
+    Optional<Ticket> findByIdForUpdate(TicketId id);
 
     boolean existsByNumber(TicketNumber number);
 }

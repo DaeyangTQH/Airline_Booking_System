@@ -329,8 +329,16 @@ public class Booking {
 
     public void confirmPayment(
             PaymentId paymentId,
-            Money paidAmount
+            Money paidAmount,
+            Instant now
     ){
+
+        if (now == null) {
+            throw new InvalidDomainValueException(
+                    "Current time must not be null"
+            );
+        }
+
         if(paymentId == null) {
             throw new InvalidDomainValueException(
                     "Payment ID must not be null"
@@ -371,6 +379,12 @@ public class Booking {
             return;
         }
 
+        if (!now.isBefore(expiresAt)) {
+            throw new InvalidBookingStateException(
+                    "Cannot confirm payment for an expired booking"
+            );
+        }
+
         status = BookingStatus.CONFIRMED;
     }
 
@@ -378,34 +392,14 @@ public class Booking {
         if(status == BookingStatus.CANCELLED){
             return;
         }
-        status = BookingStatus.CANCELLED;
-    }
 
-    public boolean isExpired(Instant now){
-        if(now == null){
-            throw new InvalidDomainValueException(
-                    "Current time must not be null"
+        if (status == BookingStatus.CONFIRMED) {
+            throw new InvalidBookingStateException(
+                    "Confirmed booking cannot be cancelled"
             );
         }
-        return status == BookingStatus.PENDING
-                && !now.isBefore(expiresAt);
-    }
 
-    public void expire(Instant now){
-        if(isExpired(now)){
-            status = BookingStatus.CANCELLED;
-        }
-    }
-
-    public boolean canAddPassenger() {
-        return status == BookingStatus.CONFIRMED
-                && passengers.size() < ticketQuantity.value();
-    }
-
-    public int remainingPassengerSlots() {
-        int remaining =
-                ticketQuantity.value() - passengers.size();
-        return Math.max(remaining, 0);
+        status = BookingStatus.CANCELLED;
     }
 
     public void addPassenger(BookingPassenger passenger){

@@ -1,8 +1,10 @@
 package com.group3.infrastructure.adapter;
 
 import com.group3.domain.aggregate.Booking;
+import com.group3.domain.aggregate.BookingStatus;
 import com.group3.domain.repository.BookingRepository;
 import com.group3.domain.vo.BookingId;
+import com.group3.domain.vo.BookingPassengerId;
 import com.group3.domain.vo.BookingReference;
 import com.group3.domain.vo.UserId;
 import com.group3.infrastructure.persistence.BookingJpaRepository;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,22 +53,6 @@ public class BookingRepositoryAdapter implements BookingRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Optional<Booking> findByReference(BookingReference reference) {
-        return bookingJpaRepository.findByBookingReference(reference.value())
-                .map(this::loadAggregate);
-    }
-
-    @Override
-    @Transactional
-    public List<Booking> findAllByUserId(UserId userId) {
-        return bookingJpaRepository.findAllByUserId(userId.value())
-                .stream()
-                .map(this::loadAggregate)
-                .toList();
-    }
-
-    @Override
     @Transactional
     public Optional<Booking> findByIdForUpdate(BookingId id) {
         return bookingJpaRepository
@@ -77,6 +64,32 @@ public class BookingRepositoryAdapter implements BookingRepository {
     @Transactional(readOnly = true)
     public boolean existsByReference(BookingReference reference) {
         return bookingJpaRepository.existsByBookingReference(reference.value());
+    }
+
+    @Override
+    @Transactional
+    public int expirePendingBookings(Instant now) {
+        return bookingJpaRepository
+                .expirePendingBookings(
+                        now,
+                        BookingStatus.PENDING,
+                        BookingStatus.CANCELLED
+                );
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Booking> findByPassengerId(BookingPassengerId passengerId) {
+
+        return passengerJpaRepository
+                .findBookingIdByPassengerId(
+                        passengerId.value()
+                )
+                .flatMap(
+                        bookingJpaRepository::findById
+                )
+                .map(this::loadAggregate);
     }
 
     private Booking loadAggregate(BookingEntity bookingEntity){

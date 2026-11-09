@@ -116,32 +116,20 @@ public class Ticket {
         this.seatId = id;
     }
 
+    public void removeSeat() {
+        ensureIssued(
+                "Only issued ticket can have its seat removed"
+        );
+
+        seatId = null;
+    }
+
     public void cancel() {
         if(status == TicketStatus.CANCELLED) {
             return;
         }
 
-        if(status == TicketStatus.REFUNDED){
-            throw new InvalidTicketStateException(
-                    "Refunded ticket cannot be cancelled"
-            );
-        }
-
         status = TicketStatus.CANCELLED;
-    }
-
-    public void markRefunded() {
-        if(status == TicketStatus.REFUNDED){
-            return;
-        }
-
-        if(status == TicketStatus.CANCELLED){
-            throw new InvalidTicketStateException(
-                    "Cancelled ticket cannot be marked as refunded"
-            );
-        }
-
-        status = TicketStatus.REFUNDED;
     }
 
     private void ensureIssued(String message){

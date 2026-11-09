@@ -8,6 +8,12 @@ spring:
   application:
     name: booking-service
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
   datasource:
     url: ${BOOKING_DB_URL}
     username: ${BOOKING_DB_USERNAME}
@@ -49,3 +55,13 @@ eureka:
 
 app:
   internal-api-key: ${INTERNAL_API_KEY}
+
+  messaging:
+    notification-queue: ${NOTIFICATION_QUEUE:notification_queue}
+
+  outbox:
+    fixed-delay-ms: ${OUTBOX_FIXED_DELAY_MS:5000}
+    max-retries: ${OUTBOX_MAX_RETRIES:5}
+
+  booking-expiration:
+    fixed-delay-ms: ${BOOKING_EXPIRATION_FIXED_DELAY_MS:60000}

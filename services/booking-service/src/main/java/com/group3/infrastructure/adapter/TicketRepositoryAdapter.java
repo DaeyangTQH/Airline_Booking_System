@@ -39,30 +39,11 @@ public class TicketRepositoryAdapter implements TicketRepository {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Optional<Ticket> findById(TicketId id) {
-        return ticketJpaRepository.findById(id.value())
-                .map(mapper::toDomain);
-    }
+    @Transactional
+    public Optional<Ticket> findByIdForUpdate(TicketId id) {
 
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<Ticket> findByNumber(TicketNumber number) {
-        return ticketJpaRepository.findByTicketNumber(number.value())
+        return ticketJpaRepository.findByIdForUpdate(id.value())
                 .map(mapper::toDomain);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<Ticket> findByPassengerId(BookingPassengerId passengerId) {
-        return ticketJpaRepository.findByPassenger_Id(passengerId.value())
-                .map(mapper::toDomain);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean existsByPassengerId(BookingPassengerId passengerId) {
-        return ticketJpaRepository.existsByPassenger_Id(passengerId.value());
     }
 
     @Override

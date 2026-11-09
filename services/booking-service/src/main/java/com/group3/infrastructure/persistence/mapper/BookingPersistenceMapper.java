@@ -78,7 +78,10 @@ public class BookingPersistenceMapper {
         return entity;
     }
 
-    public Booking toDomain(BookingEntity bookingEntity, List<BookingPassengerEntity> passengerEntities){
+    public Booking toDomain(
+            BookingEntity bookingEntity,
+            List<BookingPassengerEntity> passengerEntities
+    ){
 
         Objects.requireNonNull(bookingEntity, "BookingEntity must not be null");
 
