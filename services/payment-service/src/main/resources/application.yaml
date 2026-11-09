@@ -65,7 +65,7 @@ app:
     merchant-id: ${SEPAY_MERCHANT_ID:}
     secret-key: ${SEPAY_SECRET_KEY:}
     checkout-init-url: ${SEPAY_CHECKOUT_INIT_URL:https://pay-sandbox.sepay.vn/v1/checkout/init}
-    callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8084}
+    callback-base-url: ${SEPAY_CALLBACK_BASE_URL:http://localhost:8080}
     frontend-return-url: ${SEPAY_FRONTEND_RETURN_URL:http://localhost:5173/payment-return}
     payment-method: ${SEPAY_PAYMENT_METHOD:BANK_TRANSFER}
     currency: ${SEPAY_CURRENCY:VND}

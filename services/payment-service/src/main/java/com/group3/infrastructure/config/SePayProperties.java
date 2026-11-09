@@ -30,7 +30,7 @@ public class SePayProperties {
     /**
      * Base URL của payment-service (success/error/cancel).
      */
-    private String callbackBaseUrl = "http://localhost:8084";
+    private String callbackBaseUrl = "http://localhost:8080";
 
     /**
      * FE nhận kết quả sau khi SePay redirect về.
