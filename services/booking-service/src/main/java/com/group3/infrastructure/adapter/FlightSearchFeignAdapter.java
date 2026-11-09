@@ -1,6 +1,7 @@
 package com.group3.infrastructure.adapter;
 
 import com.group3.application.exception.FlightNotFoundException;
+import com.group3.application.exception.FlightNotBookableException;
 import com.group3.application.exception.FlightSearchCommunicationException;
 import com.group3.application.integration.FlightFareQuote;
 import com.group3.application.port.out.FlightSearchPort;
@@ -31,6 +32,11 @@ public class FlightSearchFeignAdapter implements FlightSearchPort {
                     );
             return toQuote(response);
         }catch (FeignException exception){
+            if(exception.status() == 409){
+                throw new FlightNotBookableException(
+                        "Flight fare is not supported for booking"
+                );
+            }
             if(exception.status() == 404){
                 throw new FlightNotFoundException(
                         "Flight or fare was not found"

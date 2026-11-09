@@ -1,5 +1,7 @@
 server:
   port: ${FLIGHT_SEARCH_SERVICE_PORT}
+app:
+  internal-api-key: ${INTERNAL_API_KEY}
 spring:
   config:
     import:
